@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# Conan build files
+*.pyc
+test_package/build
+build
+.ycm_extra_conf.py
+
+# Editor swap files
+.*.sw?
+*~
