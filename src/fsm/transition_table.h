@@ -8,17 +8,6 @@
 namespace skizzay::fsm {
 
 namespace details_ {
-template<class, class> struct concat;
-
-template <std::size_t... Is, std::size_t... Js>
-struct concat<std::index_sequence<Is...>, std::index_sequence<Js...>> {
-   using type = std::index_sequence<Is..., Js...>;
-};
-
-
-template<class T, class U>
-using concat_t = typename concat<T, U>::type;
-
 template<class T, class S, class E>
 using handles_event = std::conjunction<
       std::is_convertible<S const &, typename_current_state_type<T> const &>,

@@ -8,9 +8,27 @@ namespace skizzay::fsm {
 
 template<class> struct tag {};
 
-template<class ...> struct event;
+template<class ...> class event;
 
 namespace details_ {
+template<class, class> struct concat;
+
+template <std::size_t... Is, std::size_t... Js>
+struct concat<std::index_sequence<Is...>, std::index_sequence<Js...>> {
+   using type = std::index_sequence<Is..., Js...>;
+};
+
+
+template<class T, class U>
+using concat_t = typename concat<T, U>::type;
+
+template<class ...> struct parameter_list;
+
+template<class ...Ts, class ...Us>
+struct concat<parameter_list<Ts...>, parameter_list<Us...>> {
+   using type = parameter_list<Ts..., Us...>;
+};
+
 template<class T, template<class ...> class Template>
 class is_template {
    static nonesuch test(...);
@@ -28,7 +46,7 @@ class is_template<nonesuch, Template> {
 public:
    using type = nonesuch;
    using value_t = std::false_type;
-   static constexpr bool value = false;
+   static constexpr bool value = value_t::value;
 };
 
 template<class T, template<class ...> class Template>
@@ -75,6 +93,9 @@ template<class T> using has_accepts_method = is_detected_convertible<bool, accep
 
 }
 
+template<class T> using is_tag = details_::is_template<T, tag>;
+template<class T> constexpr bool is_tag_v = is_tag<T>::value;
+
 template <class T> using is_event = std::disjunction<
    details_::is_template<T, event>,
    details_::inherits_from_template<T, event>
@@ -94,5 +115,8 @@ template<class T> constexpr bool is_variant_v = is_variant<T>::value;
 
 template<class T> using is_tuple = typename details_::is_template<T, std::tuple>::value_t;
 template<class T> constexpr bool is_tuple_v = is_tuple<T>::value;
+
+template<class T>
+using remove_cref_t = std::remove_const_t<std::remove_reference_t<T>>;
 
 }

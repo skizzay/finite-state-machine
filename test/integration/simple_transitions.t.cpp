@@ -26,9 +26,9 @@ SCENARIO("simple transition table", "[unit][variant]") {
       light current_state{red{}};
       transition_table target{
          dispatcher{},
-         simple_transition<red, green, timer_expired>{},
-         simple_transition<green, yellow, timer_expired>{},
-         simple_transition<yellow, red, timer_expired>{},
+         make_simple_transition<red, green, timer_expired>(),
+         make_simple_transition<green, yellow, timer_expired>(),
+         make_simple_transition<yellow, red, timer_expired>()
       };
 
       WHEN("timer expired") {
@@ -60,9 +60,9 @@ SCENARIO("simple transition table", "[unit][variant]") {
       light current_state{green{}};
       transition_table target{
          dispatcher{},
-         simple_transition<red, green, timer_expired>{},
-         simple_transition<green, yellow, timer_expired>{},
-         simple_transition<yellow, red, timer_expired>{},
+         make_simple_transition<red, green, timer_expired>(),
+         make_simple_transition<green, yellow, timer_expired>(),
+         make_simple_transition<yellow, red, timer_expired>()
       };
 
       WHEN("timer expired") {

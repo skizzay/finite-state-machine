@@ -33,9 +33,9 @@ SCENARIO("guarded transition table", "[unit][variant]") {
       auto guard2 = std::not_fn(guard1);
       transition_table target{
          dispatcher{},
-         guarded_transition<red, green, timer_expired, decltype(guard1)>{guard1},
-         guarded_transition<green, yellow, timer_expired, decltype(guard1)>{guard1},
-         guarded_transition<yellow, red, timer_expired, decltype(guard2)>{guard2}
+         make_guarded_transition<red, green, timer_expired>(guard1),
+         make_guarded_transition<green, yellow, timer_expired>(guard1),
+         make_guarded_transition<yellow, red, timer_expired>(guard2)
       };
 
       WHEN("timer expired") {
@@ -74,9 +74,9 @@ SCENARIO("guarded transition table", "[unit][variant]") {
       auto guard2 = std::not_fn(guard1);
       transition_table target{
          dispatcher{},
-         guarded_transition<red, green, timer_expired, decltype(guard1)>{guard1},
-         guarded_transition<green, yellow, timer_expired, decltype(guard1)>{guard1},
-         guarded_transition<yellow, red, timer_expired, decltype(guard2)>{guard2}
+         make_guarded_transition<red, green, timer_expired>(guard1),
+         make_guarded_transition<green, yellow, timer_expired>(guard1),
+         make_guarded_transition<yellow, red, timer_expired>(guard2)
       };
 
       WHEN("timer expired") {

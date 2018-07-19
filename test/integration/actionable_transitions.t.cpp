@@ -11,7 +11,7 @@ using namespace skizzay::fsm;
 
 namespace {
 
-using timer_expired = event<tag<struct timer_expired_tag>>;
+struct timer_expired : event<> {};
 
 struct green {};
 struct yellow {};
@@ -28,9 +28,9 @@ SCENARIO("action transition table", "[unit][variant]") {
       auto increment_transition_count = [&transition_count](timer_expired const &e[[maybe_unused]]) { ++transition_count; };
       transition_table target{
          dispatcher{},
-         action_transition<red, green, timer_expired, decltype(increment_transition_count)>{increment_transition_count},
-         action_transition<green, yellow, timer_expired, decltype(increment_transition_count)>{increment_transition_count},
-         action_transition<yellow, red, timer_expired, decltype(increment_transition_count)>{increment_transition_count}
+         make_action_transition<red, green, timer_expired>(increment_transition_count),
+         make_action_transition<green, yellow, timer_expired>(increment_transition_count),
+         make_action_transition<yellow, red, timer_expired>(increment_transition_count)
       };
 
       WHEN("timer expired") {
@@ -76,9 +76,9 @@ SCENARIO("action transition table", "[unit][variant]") {
       auto increment_transition_count = [&transition_count](timer_expired const &e[[maybe_unused]]) { ++transition_count; };
       transition_table target{
          dispatcher{},
-         action_transition<red, green, timer_expired, decltype(increment_transition_count)>{increment_transition_count},
-         action_transition<green, yellow, timer_expired, decltype(increment_transition_count)>{increment_transition_count},
-         action_transition<yellow, red, timer_expired, decltype(increment_transition_count)>{increment_transition_count}
+         make_action_transition<red, green, timer_expired>(increment_transition_count),
+         make_action_transition<green, yellow, timer_expired>(increment_transition_count),
+         make_action_transition<yellow, red, timer_expired>(increment_transition_count)
       };
 
       WHEN("timer expired") {
