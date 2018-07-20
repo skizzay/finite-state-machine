@@ -11,24 +11,6 @@ template<class> struct tag {};
 template<class ...> class event;
 
 namespace details_ {
-template<class, class> struct concat;
-
-template <std::size_t... Is, std::size_t... Js>
-struct concat<std::index_sequence<Is...>, std::index_sequence<Js...>> {
-   using type = std::index_sequence<Is..., Js...>;
-};
-
-
-template<class T, class U>
-using concat_t = typename concat<T, U>::type;
-
-template<class ...> struct parameter_list;
-
-template<class ...Ts, class ...Us>
-struct concat<parameter_list<Ts...>, parameter_list<Us...>> {
-   using type = parameter_list<Ts..., Us...>;
-};
-
 template<class T, template<class ...> class Template>
 class is_template {
    static nonesuch test(...);

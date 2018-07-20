@@ -2,36 +2,32 @@
 
 #include "fsm/dispatcher_traits.h"
 #include "fsm/traits.h"
+#include "fsm/type_sequence.h"
 #include <type_traits>
 #include <utility>
 
 namespace skizzay::fsm {
 
 namespace details_ {
-template<class T, class S, class E>
-using handles_event = std::conjunction<
-      std::is_convertible<S const &, typename_current_state_type<T> const &>,
-      std::is_convertible<E const &, typename_event_type<T> const &>,
-      std::is_convertible<bool, accepts_method<T>>
->;
 
-template<class State, class Event, std::size_t Index, class... Transitions>
-struct acceptable_transitions_impl {
-   using type = std::index_sequence<>;
+template<class State, class Event>
+struct handles_event {
+   template<class> struct apply;
+   template<std::size_t I, class Transition>
+   struct apply<utils::type_sequence<utils::size_constant<I>, Transition>> :
+   std::conjunction<
+      std::is_convertible<State const &, typename_current_state_type<Transition> const &>,
+      std::is_convertible<Event const &, typename_event_type<Transition> const &>,
+      std::is_convertible<bool, accepts_method<Transition>>
+   > {
+   };
 };
 
-template<class State, class Event, std::size_t Index, class Transition, class... Transitions>
-struct acceptable_transitions_impl<State, Event, Index, Transition, Transitions...> {
-   using type = concat_t<
-      std::conditional_t<handles_event<Transition, State, Event>::value,
-                         std::index_sequence<Index>, 
-                         std::index_sequence<>>,
-      typename acceptable_transitions_impl<State, Event, Index + 1, Transitions...>::type>;
+template<class State, class Event, class... Transitions>
+struct acceptable_transitions {
+   template<class T> using predicate_f = utils::apply_f<handles_event<State, Event>, T>;
+   using type = utils::to_filtered_indices_t<utils::type_sequence<Transitions...>, predicate_f>;
 };
-
-
-template<class State, class Event, class ...Transitions>
-using acceptable_transitions = typename acceptable_transitions_impl<State, Event, 0, Transitions...>::type;
 
 }
 
@@ -59,7 +55,7 @@ public:
    template<class State, class Event, class StateContainer>
    constexpr void dispatch(State &s, Event const &e, StateContainer &container) {
       using traits = dispatcher_traits<Dispatcher>;
-      using transition_candidates = details_::acceptable_transitions<State, Event, Transitions...>;
+      using transition_candidates = typename details_::acceptable_transitions<State, Event, Transitions...>::type;
 
       Dispatcher &dispatcher = this->storage_;
       std::tuple<Transitions...> &transitions = this->storage_.transitions;
