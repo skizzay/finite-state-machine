@@ -95,6 +95,9 @@ template<class T> constexpr bool is_transition_v = is_transition<T>::value;
 template<class T> using is_variant = typename details_::is_template<T, std::variant>::value_t;
 template<class T> constexpr bool is_variant_v = is_variant<T>::value;
 
+template<class T> using is_in_place_type = typename details_::is_template<T, std::in_place_type_t>;
+template<class T> constexpr bool is_in_place_type_v = is_in_place_type<T>::value;
+
 template<class T> using is_tuple = typename details_::is_template<T, std::tuple>::value_t;
 template<class T> constexpr bool is_tuple_v = is_tuple<T>::value;
 

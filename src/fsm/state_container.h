@@ -26,9 +26,15 @@ public:
    {
    }
 
-   template<class InitialState>
+   template<class InitialState, std::enable_if_t<!is_in_place_type_v<std::decay_t<InitialState>>, int> = 0>
    constexpr state_container(InitialState &&initial_state) :
       states_{std::forward<InitialState>(initial_state)}
+   {
+   }
+
+   template<class InitialState, class ...Args>
+   constexpr state_container(std::in_place_type_t<InitialState> const t, Args &&...args) :
+      states_{t, std::forward<Args>(args)...}
    {
    }
 

@@ -27,7 +27,7 @@ public:
 
    template<class Function>
    constexpr decltype(auto) query(Function &&f) const {
-      return current_state_.query(f);
+      return current_state_.query(std::forward<Function>(f));
    }
 
    template<class State>

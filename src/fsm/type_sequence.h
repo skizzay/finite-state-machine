@@ -62,9 +62,11 @@ struct index_of<type_sequence<T, Ts...>, U, I> : std::conditional_t<std::is_same
 
 template<class T> using back = at<T, length_v<T> - 1>;
 template<class T> using back_t = typename back<T>::type;
+template<class T> constexpr auto back_v = back<T>::value;
 
 template<class T> using front = at<T, 0>;
 template<class T> using front_t = typename front<T>::type;
+template<class T> constexpr auto front_v = front<T>::value;
 
 template<class ...> struct concat;
 template<class ...Ts> using concat_t = typename concat<Ts...>::type;
