@@ -1,6 +1,7 @@
+#include <skizzay/fsm/finite_state_machine.h>
 #include <iostream>
-#include "hello.h"
 
 int main() {
-    hello();
+   std::cout << "Success" << std::endl;
+   return 0;
 }
