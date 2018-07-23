@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fsm/traits.h"
+#include "skizzay/fsm/traits.h"
 #include <utility>
 
 namespace skizzay::fsm {

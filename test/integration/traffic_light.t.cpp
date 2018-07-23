@@ -1,9 +1,9 @@
-#include "fsm/dispatcher.h"
-#include "fsm/event.h"
-#include "fsm/finite_state_machine.h"
-#include "fsm/state_container.h"
-#include "fsm/transition.h"
-#include "fsm/transition_table.h"
+#include "skizzay/fsm/dispatcher.h"
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/finite_state_machine.h"
+#include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/transition.h"
+#include "skizzay/fsm/transition_table.h"
 #include <catch.hpp>
 #include <chrono>
 #include <cstdint>

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "fsm/traits.h"
-#include "fsm/type_sequence.h"
+#include "skizzay/fsm/traits.h"
+#include "skizzay/utils/type_sequence.h"
 #include <type_traits>
 #include <utility>
 

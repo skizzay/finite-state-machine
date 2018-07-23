@@ -1,7 +1,7 @@
 #pragma once
 
-#include "fsm/detected.h"
-#include "fsm/traits.h"
+#include "skizzay/fsm/traits.h"
+#include "skizzay/utils/detected.h"
 #include <cstddef>
 #include <stdexcept>
 #include <tuple>
@@ -14,11 +14,11 @@ namespace details_ {
 template<class D, class ...Args>
 using no_trigger_found_method = decltype(std::declval<D>().on_no_trigger_found(std::declval<Args const &>()...));
 template<class D, class ...Args>
-constexpr bool has_no_trigger_found_method_v = is_detected_v<no_trigger_found_method, D, Args...>;
+constexpr bool has_no_trigger_found_method_v = utils::is_detected_v<no_trigger_found_method, D, Args...>;
 template<class D, class ...Args>
 using on_ambiguous_trigger_found_method = decltype(std::declval<D>().on_ambiguous_trigger_found(std::declval<Args const &>()...));
 template <class D, class... Args>
-using has_on_ambiguous_trigger_found_method = is_detected<on_ambiguous_trigger_found_method, D, Args...>;
+using has_on_ambiguous_trigger_found_method = utils::is_detected<on_ambiguous_trigger_found_method, D, Args...>;
 template <class D, class... Args>
 constexpr bool has_on_ambiguous_trigger_found_method_v = has_on_ambiguous_trigger_found_method<D, Args...>::value;
 template <class Dispatcher, class State, class Event>

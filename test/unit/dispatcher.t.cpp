@@ -1,5 +1,5 @@
-#include "fsm/dispatcher.h"
-#include "fsm/event.h"
+#include "skizzay/fsm/dispatcher.h"
+#include "skizzay/fsm/event.h"
 #include <catch.hpp>
 
 using namespace skizzay::fsm;

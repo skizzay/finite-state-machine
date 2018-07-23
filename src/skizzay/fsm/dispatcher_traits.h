@@ -1,8 +1,7 @@
 #pragma once
 
-#include "fsm/detected.h"
-#include "fsm/dispatcher.h"
-#include "fsm/state.h"
+#include "skizzay/fsm/dispatcher.h"
+#include "skizzay/fsm/state.h"
 #include <cstddef>
 #include <tuple>
 #include <utility>

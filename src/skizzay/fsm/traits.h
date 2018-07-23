@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fsm/detected.h"
+#include "skizzay/utils/detected.h"
 #include <type_traits>
 #include <variant>
 
@@ -13,7 +13,7 @@ template<class ...> class event;
 namespace details_ {
 template<class T, template<class ...> class Template>
 class is_template {
-   static nonesuch test(...);
+   static utils::nonesuch test(...);
    template<class ...Args>
    static Template<Args...> test(Template<Args...> * const);
 
@@ -24,9 +24,9 @@ public:
 };
 
 template<template<class ...> class Template>
-class is_template<nonesuch, Template> {
+class is_template<utils::nonesuch, Template> {
 public:
-   using type = nonesuch;
+   using type = utils::nonesuch;
    using value_t = std::false_type;
    static constexpr bool value = value_t::value;
 };
@@ -35,7 +35,7 @@ template<class T, template<class ...> class Template>
 struct inherits_from_template : std::is_base_of<typename is_template<T, Template>::type, T> {};
 
 template<template<class ...> class Template>
-struct inherits_from_template<nonesuch, Template> : std::false_type {};
+struct inherits_from_template<utils::nonesuch, Template> : std::false_type {};
 
 template<class T>
 using dereference = decltype(*std::declval<T>());
@@ -49,7 +49,7 @@ template<class T> struct is_dereferencible_to_reference<T, std::void_t<dereferen
 template<class T>
 using is_pointer_like = std::disjunction<std::is_pointer<T>,
       std::conjunction<is_dereferencible_to_reference<T>,
-                       is_detected<pointer_operator, T>
+                       utils::is_detected<pointer_operator, T>
       >>;
 
 template<class T>
@@ -63,15 +63,15 @@ constexpr auto to_reference(T &t) noexcept -> dereference<std::remove_reference_
 }
 
 template<class T> using typename_current_state_type = typename T::current_state_type;
-template<class T> using has_typename_current_state_type = is_detected<typename_current_state_type, T>;
+template<class T> using has_typename_current_state_type = utils::is_detected<typename_current_state_type, T>;
 template<class T> using typename_next_state_type = typename T::next_state_type;
-template<class T> using has_typename_next_state_type = is_detected<typename_next_state_type, T>;
+template<class T> using has_typename_next_state_type = utils::is_detected<typename_next_state_type, T>;
 template<class T> using typename_event_type = typename T::event_type;
 
 template<class T>
 using accepts_method = decltype(std::declval<T const>().accepts(std::declval<typename_current_state_type<T> const &>(),
                                                                 std::declval<typename_event_type<T> const &>()));
-template<class T> using has_accepts_method = is_detected_convertible<bool, accepts_method, T>;
+template<class T> using has_accepts_method = utils::is_detected_convertible<bool, accepts_method, T>;
 
 }
 
@@ -87,7 +87,7 @@ template<class T> constexpr bool is_event_v = is_event<T>::value;
 template<class T> using is_transition = std::conjunction<
    details_::has_typename_current_state_type<T>,
    details_::has_typename_next_state_type<T>,
-   is_event<detected_t<details_::typename_event_type, T>>,
+   is_event<utils::detected_t<details_::typename_event_type, T>>,
    details_::has_accepts_method<T>
 >;
 template<class T> constexpr bool is_transition_v = is_transition<T>::value;

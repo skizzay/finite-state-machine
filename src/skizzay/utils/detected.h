@@ -2,7 +2,7 @@
 
 #include <experimental/type_traits>
 
-namespace skizzay::fsm {
+namespace skizzay::utils {
 
 using std::experimental::nonesuch;
 using std::experimental::detected_t;

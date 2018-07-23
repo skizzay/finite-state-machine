@@ -1,7 +1,8 @@
-#include "fsm/traits.h"
-#include "fsm/event.h"
-#include "fsm/transition.h"
-#include "catch.hpp"
+#include "skizzay/fsm/traits.h"
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/transition.h"
+#include "skizzay/utils/detected.h"
+#include <catch.hpp>
 #include <variant>
 
 using namespace skizzay::fsm;
@@ -37,9 +38,9 @@ struct missing_event_type {
 struct event_type_is_not_an_event {
    using current_state_type = state_for_transition_traits;
    using next_state_type = state_for_transition_traits;
-   using event_type = nonesuch;
+   using event_type = skizzay::utils::nonesuch;
 
-   bool accepts(current_state_type const &, nonesuch const &);
+   bool accepts(current_state_type const &, skizzay::utils::nonesuch const &);
 };
 
 struct missing_compatible_accepts_method {

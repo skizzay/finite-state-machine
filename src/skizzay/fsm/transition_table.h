@@ -1,8 +1,8 @@
 #pragma once
 
-#include "fsm/dispatcher_traits.h"
-#include "fsm/traits.h"
-#include "fsm/type_sequence.h"
+#include "skizzay/fsm/dispatcher_traits.h"
+#include "skizzay/fsm/traits.h"
+#include "skizzay/utils/type_sequence.h"
 #include <type_traits>
 #include <utility>
 

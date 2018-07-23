@@ -1,10 +1,10 @@
-#include "fsm/transition_table.h"
-#include "fsm/dispatcher.h"
-#include "fsm/event.h"
-#include "fsm/overload.h"
-#include "fsm/state_container.h"
-#include "fsm/transition.h"
-#include "catch.hpp"
+#include "skizzay/fsm/transition_table.h"
+#include "skizzay/fsm/dispatcher.h"
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/transition.h"
+#include "skizzay/utils/overload.h"
+#include <catch.hpp>
 #include <variant>
 
 using namespace skizzay::fsm;
@@ -25,7 +25,7 @@ SCENARIO("guarded transition table", "[unit][variant]") {
    GIVEN("red") {
       light current_state{red{}};
       bool flag = true;
-      auto guard1 = overload{
+      auto guard1 = skizzay::utils::overload{
          [&flag](red const &, timer_expired const &) { return flag; },
          [&flag](yellow const &, timer_expired const &) { return flag; },
          [&flag](green const &, timer_expired const &) { return flag; }
@@ -66,7 +66,7 @@ SCENARIO("guarded transition table", "[unit][variant]") {
    GIVEN("green") {
       light current_state{green{}};
       bool flag = true;
-      auto guard1 = overload{
+      auto guard1 = skizzay::utils::overload{
          [&flag](red const &, timer_expired const &) { return flag; },
          [&flag](yellow const &, timer_expired const &) { return flag; },
          [&flag](green const &, timer_expired const &) { return flag; }
