@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.11.2)
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(TARGETS)
+include(res/Catch)
 
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fstrict-aliasing -Werror")
 
