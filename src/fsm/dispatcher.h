@@ -114,7 +114,9 @@ public:
    }
 
    template <class State, class Event, class TransitionTuple, std::size_t... Indices>
-   constexpr void on_accepted(State const &s, Event const &e, TransitionTuple const &transitions, std::index_sequence<Indices...> const is) {
+   constexpr void on_accepted(State const &s[[maybe_unused]], Event const &e[[maybe_unused]],
+         TransitionTuple const &transitions[[maybe_unused]],
+         std::index_sequence<Indices...> const is[[maybe_unused]]) {
       static_assert(is_event_v<Event>);
       static_assert(is_tuple_v<TransitionTuple>);
       if constexpr (std::disjunction_v<details_::handles_ambiguous_triggers<DispatcherPolicies, State, Event>...>

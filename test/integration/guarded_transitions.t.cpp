@@ -26,9 +26,9 @@ SCENARIO("guarded transition table", "[unit][variant]") {
       light current_state{red{}};
       bool flag = true;
       auto guard1 = overload{
-         [&flag](red const &s, timer_expired const &e) { return flag; },
-         [&flag](yellow const &s, timer_expired const &e) { return flag; },
-         [&flag](green const &s, timer_expired const &e) { return flag; }
+         [&flag](red const &, timer_expired const &) { return flag; },
+         [&flag](yellow const &, timer_expired const &) { return flag; },
+         [&flag](green const &, timer_expired const &) { return flag; }
       };
       auto guard2 = std::not_fn(guard1);
       transition_table target{
@@ -67,9 +67,9 @@ SCENARIO("guarded transition table", "[unit][variant]") {
       light current_state{green{}};
       bool flag = true;
       auto guard1 = overload{
-         [&flag](red const &s, timer_expired const &e) { return flag; },
-         [&flag](yellow const &s, timer_expired const &e) { return flag; },
-         [&flag](green const &s, timer_expired const &e) { return flag; }
+         [&flag](red const &, timer_expired const &) { return flag; },
+         [&flag](yellow const &, timer_expired const &) { return flag; },
+         [&flag](green const &, timer_expired const &) { return flag; }
       };
       auto guard2 = std::not_fn(guard1);
       transition_table target{
