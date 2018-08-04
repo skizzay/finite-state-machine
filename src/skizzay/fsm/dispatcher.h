@@ -1,7 +1,8 @@
 #pragma once
 
 #include "skizzay/fsm/traits.h"
-#include "skizzay/utils/detected.h"
+#include <skizzay/utilz/detected.h>
+#include <skizzay/utilz/traits.h>
 #include <cstddef>
 #include <stdexcept>
 #include <tuple>
@@ -14,11 +15,11 @@ namespace details_ {
 template<class D, class ...Args>
 using no_trigger_found_method = decltype(std::declval<D>().on_no_trigger_found(std::declval<Args const &>()...));
 template<class D, class ...Args>
-constexpr bool has_no_trigger_found_method_v = utils::is_detected_v<no_trigger_found_method, D, Args...>;
+constexpr bool has_no_trigger_found_method_v = utilz::is_detected_v<no_trigger_found_method, D, Args...>;
 template<class D, class ...Args>
 using on_ambiguous_trigger_found_method = decltype(std::declval<D>().on_ambiguous_trigger_found(std::declval<Args const &>()...));
 template <class D, class... Args>
-using has_on_ambiguous_trigger_found_method = utils::is_detected<on_ambiguous_trigger_found_method, D, Args...>;
+using has_on_ambiguous_trigger_found_method = utilz::is_detected<on_ambiguous_trigger_found_method, D, Args...>;
 template <class D, class... Args>
 constexpr bool has_on_ambiguous_trigger_found_method_v = has_on_ambiguous_trigger_found_method<D, Args...>::value;
 template <class Dispatcher, class State, class Event>
@@ -118,7 +119,7 @@ public:
          TransitionTuple const &transitions[[maybe_unused]],
          std::index_sequence<Indices...> const is[[maybe_unused]]) {
       static_assert(is_event_v<Event>);
-      static_assert(is_tuple_v<TransitionTuple>);
+      static_assert(utilz::is_tuple_v<TransitionTuple>);
       if constexpr (std::disjunction_v<details_::handles_ambiguous_triggers<DispatcherPolicies, State, Event>...>
             && (0 < sizeof...(Indices))) {
             if (details_::has_on_ambiguous_trigger(s, e, transitions, is)) {

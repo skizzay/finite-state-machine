@@ -3,7 +3,7 @@
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/transition.h"
-#include "skizzay/utils/overload.h"
+#include "skizzay/utilz/overload.h"
 #include <catch.hpp>
 #include <variant>
 

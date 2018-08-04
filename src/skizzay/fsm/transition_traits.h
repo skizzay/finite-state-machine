@@ -1,14 +1,14 @@
 #pragma once
 
 #include "skizzay/fsm/traits.h"
-#include "skizzay/utils/detected.h"
+#include "skizzay/utilz/detected.h"
 #include <type_traits>
 
 namespace skizzay::fsm {
 
 namespace details_ {
 template<class T> using on_triggered_method = decltype(std::declval<T>().on_triggered(std::declval<typename_event_type<T> const &>()));
-template<class T> using has_on_triggered_method = utils::is_detected<on_triggered_method, T>;
+template<class T> using has_on_triggered_method = utilz::is_detected<on_triggered_method, T>;
 }
 
 template<class Transition>

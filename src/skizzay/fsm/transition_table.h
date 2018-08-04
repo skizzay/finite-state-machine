@@ -2,7 +2,7 @@
 
 #include "skizzay/fsm/dispatcher_traits.h"
 #include "skizzay/fsm/traits.h"
-#include "skizzay/utils/type_sequence.h"
+#include "skizzay/utilz/type_sequence.h"
 #include <type_traits>
 #include <utility>
 
@@ -12,21 +12,22 @@ namespace details_ {
 
 template<class State, class Event>
 struct handles_event {
-   template<class> struct apply;
-   template<std::size_t I, class Transition>
-   struct apply<utils::type_sequence<utils::size_constant<I>, Transition>> :
-   std::conjunction<
+   template<class Transition>
+   struct apply : std::conjunction<
       std::is_convertible<State const &, typename_current_state_type<Transition> const &>,
       std::is_convertible<Event const &, typename_event_type<Transition> const &>,
       std::is_convertible<bool, accepts_method<Transition>>
    > {
    };
+
+   template<std::size_t I, class Transition>
+   struct apply<utilz::type_sequence<utilz::size_constant<I>, Transition>> : apply<Transition> {};
 };
 
 template<class State, class Event, class... Transitions>
 struct acceptable_transitions {
-   template<class T> using predicate_f = utils::apply_f<handles_event<State, Event>, T>;
-   using type = utils::to_filtered_indices_t<utils::type_sequence<Transitions...>, predicate_f>;
+   template<class T> using predicate_f = utilz::apply_f<handles_event<State, Event>, T>;
+   using type = utilz::to_filtered_indices_t<utilz::type_sequence<Transitions...>, predicate_f>;
 };
 
 }

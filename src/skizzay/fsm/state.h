@@ -10,27 +10,27 @@ namespace details_ {
 template <class T>
 using on_exited_method = decltype(std::declval<T>().on_exited());
 template <class T>
-using has_on_exited_method = utils::is_detected<on_exited_method, T>;
+using has_on_exited_method = utilz::is_detected<on_exited_method, T>;
 
 template <class T>
 using on_entered_method = decltype(std::declval<T>().on_entered());
 template <class T>
-using has_on_entered_method = utils::is_detected<on_entered_method, T>;
+using has_on_entered_method = utilz::is_detected<on_entered_method, T>;
 
 template <class T, class E>
 using on_entered_with_event_method = decltype(std::declval<T>().on_entered(std::declval<E const &>()));
 template <class T, class E>
-using has_on_entered_with_event_method = utils::is_detected<on_entered_with_event_method, T, E>;
+using has_on_entered_with_event_method = utilz::is_detected<on_entered_with_event_method, T, E>;
 
 template <class T>
 using on_reentered_method = decltype(std::declval<T>().on_reentered());
 template <class T>
-using has_on_reentered_method = utils::is_detected<on_reentered_method, T>;
+using has_on_reentered_method = utilz::is_detected<on_reentered_method, T>;
 
 template <class T, class E>
 using on_reentered_with_event_method = decltype(std::declval<T>().on_reentered(std::declval<E const &>()));
 template <class T, class E>
-using has_on_reentered_with_event_method = utils::is_detected<on_reentered_with_event_method, T, E>;
+using has_on_reentered_with_event_method = utilz::is_detected<on_reentered_with_event_method, T, E>;
 }
 
 template<class State>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "skizzay/fsm/traits.h"
+#include <skizzay/utilz/traits.h>
 #include <utility>
 
 namespace skizzay::fsm {
@@ -78,7 +79,7 @@ using action_transition = basic_transition<FromState, ToState, Event, Action, de
 
 template<class FromState, class ToState, class Event, class Action>
 constexpr auto make_action_transition(Action &&action) {
-   return action_transition<FromState, ToState, Event, remove_cref_t<Action>>{std::forward<Action>(action)};
+   return action_transition<FromState, ToState, Event, utilz::remove_cref_t<Action>>{std::forward<Action>(action)};
 }
 
 template<class FromState, class ToState, class Event, class Guard>
@@ -86,7 +87,7 @@ using guarded_transition = basic_transition<FromState, ToState, Event, details_:
 
 template <class FromState, class ToState, class Event, class Guard>
 constexpr auto make_guarded_transition(Guard &&guard) {
-   return guarded_transition<FromState, ToState, Event, remove_cref_t<Guard>> {std::forward<Guard>(guard)};
+   return guarded_transition<FromState, ToState, Event, utilz::remove_cref_t<Guard>> {std::forward<Guard>(guard)};
 }
 
 template <class FromState, class ToState, class Event, class Action, class Guard>
@@ -94,7 +95,7 @@ using transition = basic_transition<FromState, ToState, Event, Action, Guard>;
 
 template <class FromState, class ToState, class Event, class Action, class Guard>
 constexpr auto make_transition(Action &&action, Guard &&guard) {
-   return transition<FromState, ToState, Event, remove_cref_t<Action>, remove_cref_t<Guard>>
+   return transition<FromState, ToState, Event, utilz::remove_cref_t<Action>, utilz::remove_cref_t<Guard>>
    {std::forward<Action>(action), std::forward<Guard>(guard)};
 }
 

@@ -1,6 +1,6 @@
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/event.h"
-#include "skizzay/utils/overload.h"
+#include "skizzay/utilz/overload.h"
 #include <catch.hpp>
 
 using namespace skizzay::fsm;
@@ -41,7 +41,7 @@ TEST_CASE("state_container", "[unit]") {
    }
 
    SECTION("query visits current state") {
-      bool const result = target.query(skizzay::utils::overload{
+      bool const result = target.query(skizzay::utilz::overload{
             [](state1 const &) { return true; },
             [](auto const &) { return false; }
          });

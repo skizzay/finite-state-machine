@@ -1,7 +1,8 @@
 #include "skizzay/fsm/traits.h"
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/transition.h"
-#include "skizzay/utils/detected.h"
+#include <skizzay/utilz/detected.h>
+#include <skizzay/utilz/traits.h>
 #include <catch.hpp>
 #include <variant>
 
@@ -38,9 +39,9 @@ struct missing_event_type {
 struct event_type_is_not_an_event {
    using current_state_type = state_for_transition_traits;
    using next_state_type = state_for_transition_traits;
-   using event_type = skizzay::utils::nonesuch;
+   using event_type = skizzay::utilz::nonesuch;
 
-   bool accepts(current_state_type const &, skizzay::utils::nonesuch const &);
+   bool accepts(current_state_type const &, skizzay::utilz::nonesuch const &);
 };
 
 struct missing_compatible_accepts_method {
@@ -57,7 +58,7 @@ TEST_CASE("traits", "[unit]") {
    SECTION("event traits") {
       SECTION("tagged event") {
          struct dto {};
-         using tagged_event = event<tag<struct some_tag>, dto>;
+         using tagged_event = event<skizzay::utilz::tag<struct some_tag>, dto>;
 
          REQUIRE(is_event_v<tagged_event>);
       }
@@ -71,7 +72,7 @@ TEST_CASE("traits", "[unit]") {
 
       SECTION("inherited, tagged event") {
          struct dto {};
-         struct inherited_tagged_event : event<tag<struct some_tag>, dto> {};
+         struct inherited_tagged_event : event<skizzay::utilz::tag<struct some_tag>, dto> {};
 
          REQUIRE(is_event_v<inherited_tagged_event>);
       }
@@ -121,16 +122,16 @@ TEST_CASE("traits", "[unit]") {
    SECTION("variant traits") {
       SECTION("variant type") {
          struct dto {};
-         using tagged_event = event<tag<struct some_tag>, dto>;
+         using tagged_event = event<skizzay::utilz::tag<struct some_tag>, dto>;
          using untagged_event = event<dto>;
          using variant_type = std::variant<tagged_event, untagged_event>;
 
-         REQUIRE(is_variant_v<variant_type>);
+         REQUIRE(skizzay::utilz::is_variant_v<variant_type>);
       }
 
       SECTION("non-variant type") {
          struct dto {};
-         REQUIRE_FALSE(is_variant_v<dto>);
+         REQUIRE_FALSE(skizzay::utilz::is_variant_v<dto>);
       }
    }
 }

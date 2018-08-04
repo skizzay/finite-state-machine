@@ -1,6 +1,7 @@
 #pragma once
 
 #include "skizzay/fsm/traits.h"
+#include <skizzay/utilz/traits.h>
 #include <functional>
 #include <memory>
 #include <type_traits>
@@ -28,7 +29,7 @@ public:
    {
    }
 
-   template<class InitialState, std::enable_if_t<!is_in_place_type_v<std::decay_t<InitialState>>, int> = 0>
+   template<class InitialState, std::enable_if_t<!utilz::is_in_place_type_v<std::decay_t<InitialState>>, int> = 0>
    constexpr state_container(InitialState &&initial_state) :
       states_{std::forward<InitialState>(initial_state)}
    {

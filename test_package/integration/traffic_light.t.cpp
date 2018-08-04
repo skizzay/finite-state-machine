@@ -4,6 +4,7 @@
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/transition.h"
 #include "skizzay/fsm/transition_table.h"
+#include <skizzay/utilz/traits.h>
 #include <catch.hpp>
 #include <chrono>
 #include <cstdint>
@@ -21,9 +22,9 @@ namespace {
    };
 
    template<class ...TagsAndEventData>
-   using traffic_light_event = event<tag<struct traffic_light_event_tag>, event_header, TagsAndEventData...>;
+   using traffic_light_event = event<skizzay::utilz::tag<struct traffic_light_event_tag>, event_header, TagsAndEventData...>;
 
-   using timer_expired = traffic_light_event<tag<struct timer_expired_tag>>;
+   using timer_expired = traffic_light_event<skizzay::utilz::tag<struct timer_expired_tag>>;
 
    enum class color {
       red,
