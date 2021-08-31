@@ -40,7 +40,12 @@ TEST_CASE("dummy types", "[unit][traits]") {
     REQUIRE(is_machine_ancestry<details_::dummy_machine_ancestry>::value);
     SECTION("dummy child ancestor") {
       using target_type = details_::dummy_child_ancestor<details_::dummy_state>;
+      REQUIRE(has_states_list_type<target_type>::value);
+      REQUIRE(is_ancestry_details_::has_generation_count<target_type>::value);
+      REQUIRE(is_ancestry_details_::has_with_new_generation<target_type>::value);
       REQUIRE(is_ancestry<target_type>::value);
+      REQUIRE(is_ancestry_details_::has_origin<target_type>::value);
+      REQUIRE(is_ancestry_details_::has_child<target_type>::value);
       REQUIRE(is_child_ancestry<target_type>::value);
     }
   }

@@ -91,7 +91,7 @@ template <typename T> struct dummy_child_ancestor {
   using origin_state_type = T;
   using child_state_type = T;
   using states_list_type = std::tuple<T>;
-  std::size_t generation_count() const noexcept { return 1; }
+  static std::size_t generation_count() noexcept { return 1; }
   template <typename X>
   dummy_parent_ancestry with_new_generation(X &&) const noexcept {
     return {};

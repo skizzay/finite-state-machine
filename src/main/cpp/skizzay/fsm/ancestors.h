@@ -25,10 +25,8 @@ struct with_state_types<ChildState, ParentState, AncestorStates...> {
       sizeof...(AncestorStates), states_list<ParentState, AncestorStates...>>>;
 };
 
-template <typename, typename...> struct ancestors;
-
 template <concepts::state... States>
-struct ancestors<void, States...> : with_state_types<States...> {
+struct ancestors : with_state_types<States...> {
   using states_list_type = states_list<std::remove_cvref_t<States>...>;
 
 private:
@@ -76,175 +74,51 @@ public:
   }
 
   template <concepts::state State>
-  constexpr ancestors<void, State, States...>
+  constexpr ancestors<State, States...>
   with_new_generation(State &state) const noexcept {
     return {std::tuple_cat(std::tie(&state), states_)};
   }
 
-  constexpr ancestors<void, std::add_const_t<States>...>
+  constexpr ancestors<std::add_const_t<States>...>
   with_immutability() const noexcept {
     return [this]<std::size_t... Is>(
         std::index_sequence<Is...> const) noexcept {
-      return ancestors<void, std::add_const_t<States>...>{
+      return ancestors<std::add_const_t<States>...>{
           std::as_const(this->template generation_at<Is>())...};
     }
     (std::make_index_sequence<sizeof...(States)>{});
   }
-
-  template <concepts::machine Machine>
-  constexpr ancestors<Machine, States...>
-  with_machine(Machine &machine) const noexcept;
 
 private:
   tuple_type states_;
 };
-
-template <concepts::machine Machine, concepts::state... States>
-struct ancestors<Machine, States...>
-    : public ancestors<
-          void,
-          std::conditional_t<std::is_const_v<Machine>, std::add_const_t<States>,
-                             std::remove_const_t<States>>...> {
-  using machine_type = std::remove_cvref_t<Machine>;
-
-private:
-  template <typename T>
-  using const_correct_t =
-      std::conditional_t<std::is_const_v<Machine>, std::add_const_t<T>,
-                         std::remove_const_t<T>>;
-
-public:
-  constexpr ancestors(Machine &machine,
-                      const_correct_t<States> &...states) noexcept
-      : ancestors<void, const_correct_t<States>...>{states...},
-        machine_{std::addressof(machine)} {}
-
-  constexpr ancestors(
-      Machine &machine,
-      std::tuple<
-          std::conditional_t<std::is_const_v<Machine>, std::add_const_t<States>,
-                             std::remove_const_t<States>> &...>
-          states) noexcept
-      : ancestors<void, const_correct_t<States>...>{states},
-        machine_{std::addressof(machine)} {}
-
-  constexpr Machine &machine() const noexcept { return *machine_; }
-
-  template <concepts::state State>
-  constexpr ancestors<Machine, State, States...>
-  with_new_generation(State &state) const noexcept {
-    return [this]<std::size_t... Is>(std::index_sequence<Is...> const,
-                                     const_correct_t<State> &state) noexcept {
-      return ancestors<const_correct_t<Machine>, const_correct_t<State>,
-                       const_correct_t<States>...>{
-          machine(), state, this->template generation_at<Is>()...};
-    }
-    (std::make_index_sequence<sizeof...(States)>{}, state);
-  }
-
-  constexpr ancestors<std::add_const_t<Machine>, std::add_const_t<States>...>
-  with_immutability() const noexcept {
-    return [this]<std::size_t... Is>(
-        std::index_sequence<Is...> const) noexcept {
-      return ancestors<std::add_const_t<Machine>, std::add_const_t<States>...>{
-          std::as_const(machine()),
-          std::as_const(this->template generation_at<Is>())...};
-    }
-    (std::make_index_sequence<sizeof...(States)>{});
-  }
-
-  constexpr ancestors<void, States...> without_machine() const noexcept {
-    return [this]<std::size_t... Is>(
-        std::index_sequence<Is...> const) noexcept {
-      return ancestors<void, States...>{this->template generation_at<Is>()...};
-    }
-    (std::make_index_sequence<sizeof...(States)>{});
-  }
-
-private:
-  Machine *machine_;
-};
-
-template <concepts::state... States>
-template <concepts::machine Machine>
-constexpr ancestors<Machine, States...>
-ancestors<void, States...>::with_machine(Machine &machine) const noexcept {
-  return [this]<std::size_t... Is>(std::index_sequence<Is...> const,
-                                   Machine &machine) noexcept {
-    return ancestors<Machine, States...>{machine,
-                                         this->template generation_at<Is>()...};
-  }
-  (std::make_index_sequence<sizeof...(States)>{}, machine);
-}
-
-template <typename... States> struct ancestors_type_picker {
-  using type = ancestors<void, States...>;
-};
-template <concepts::machine Machine, concepts::state... States>
-struct ancestors_type_picker<Machine, States...> {
-  using type = ancestors<Machine, States...>;
-};
-
-template <typename... Ts>
-using picked_ancestors_t = typename ancestors_type_picker<Ts...>::type;
 } // namespace ancestor_details_
 
-template <typename... Ts>
-struct ancestors : ancestor_details_::picked_ancestors_t<Ts...> {
-  using ancestor_details_::picked_ancestors_t<Ts...>::picked_ancestors_t;
-};
+template <concepts::state... States>
+using ancestors = ancestor_details_::ancestors<States...>;
 
-template <std::size_t I, typename T, typename... Ts>
-constexpr decltype(auto) get(ancestors<T, Ts...> const &a) noexcept {
+template <std::size_t I, typename... Ts>
+constexpr decltype(auto) get(ancestors<Ts...> const &a) noexcept {
   return a.template ancestor_at<I>();
 }
 
-template <typename U, typename T, typename... Ts>
-constexpr decltype(auto) get(ancestors<T, Ts...> const &a) noexcept {
+template <typename U, typename... Ts>
+constexpr decltype(auto) get(ancestors<Ts...> const &a) noexcept {
   return a.template ancestor_of<U>();
 }
-
-template <concepts::state... States>
-ancestors(States &...) -> ancestors<States...>;
-
-template <concepts::state... States>
-ancestors(States const &...) -> ancestors<States const...>;
-
-template <concepts::state... States>
-ancestors(std::tuple<States &...> states) -> ancestors<States...>;
-
-template <concepts::state... States>
-ancestors(std::tuple<States const &...> states) -> ancestors<States const...>;
-
-template <concepts::machine Machine, concepts::state... States>
-ancestors(Machine &, States &...) -> ancestors<Machine, States...>;
-
-template <concepts::machine Machine, concepts::state... States>
-ancestors(Machine const &, States const &...)
-    -> ancestors<Machine const, States const...>;
-
-template <concepts::machine Machine, concepts::state... States>
-ancestors(Machine &, std::tuple<States &...> states)
-    -> ancestors<Machine, States...>;
-
-template <concepts::machine Machine, concepts::state... States>
-ancestors(Machine const &, std::tuple<States const &...> states)
-    -> ancestors<Machine const, States const...>;
-
 } // namespace skizzay::fsm
 
 namespace std {
 
-template <typename T, typename... Ts>
-struct tuple_size<skizzay::fsm::ancestors<T, Ts...>>
+template <typename... Ts>
+struct tuple_size<skizzay::fsm::ancestors<Ts...>>
     : std::integral_constant<
-          std::size_t, skizzay::fsm::ancestors<T, Ts...>::generation_count()> {
-};
+          std::size_t, skizzay::fsm::ancestors<Ts...>::generation_count()> {};
 
-template <std::size_t I, typename T, typename... Ts>
-struct tuple_element<I, skizzay::fsm::ancestors<T, Ts...>> {
+template <std::size_t I, typename... Ts>
+struct tuple_element<I, skizzay::fsm::ancestors<Ts...>> {
   using type = std::remove_reference_t<
-      decltype(std::declval<skizzay::fsm::ancestors<T, Ts...>>()
+      decltype(std::declval<skizzay::fsm::ancestors<Ts...>>()
                    .template ancestor_at<I>())>;
 };
 
