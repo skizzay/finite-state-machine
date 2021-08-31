@@ -59,12 +59,12 @@ SCENARIO("Traffic light", "[integration]") {
    GIVEN("a red light") {
       finite_state_machine target{
          transition_table{
-            dispatcher{throw_on_no_trigger{}, throw_on_ambiguous_trigger{}},
             make_simple_transition<red_light, green_light, timer_expired>(),
             make_simple_transition<green_light, yellow_light, timer_expired>(),
             make_simple_transition<yellow_light, red_light, timer_expired>()
          },
-         state_container<std::variant<red_light, yellow_light, green_light>>{std::in_place_type<red_light>}
+         state_container<std::variant<red_light, yellow_light, green_light>>{std::in_place_type<red_light>},
+         dispatcher{throw_on_no_trigger{}, throw_on_ambiguous_trigger{}}
       };
 
       WHEN("time has expired") {
