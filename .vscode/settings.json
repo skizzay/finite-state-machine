@@ -72,6 +72,7 @@
    "C_Cpp.loggingLevel": "Debug",
    "C_Cpp.clang_format_path": "/usr/bin/clang-format-12",
    "editor.defaultFormatter": "ms-vscode.cpptools",
+   "editor.bracketPairColorization.enabled": true,
    "clang-format.executable": "/usr/bin/clang-format-12",
    "clang-format.language.typescript.enable": false,
    "clang-format.language.objective-cpp.enable": false,

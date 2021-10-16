@@ -42,7 +42,8 @@ TEST_CASE("dummy types", "[unit][traits]") {
       using target_type = details_::dummy_child_ancestor<details_::dummy_state>;
       REQUIRE(has_states_list_type<target_type>::value);
       REQUIRE(is_ancestry_details_::has_generation_count<target_type>::value);
-      REQUIRE(is_ancestry_details_::has_with_new_generation<target_type>::value);
+      REQUIRE(
+          is_ancestry_details_::has_with_new_generation<target_type>::value);
       REQUIRE(is_ancestry<target_type>::value);
       REQUIRE(is_ancestry_details_::has_origin<target_type>::value);
       REQUIRE(is_ancestry_details_::has_child<target_type>::value);
@@ -50,23 +51,18 @@ TEST_CASE("dummy types", "[unit][traits]") {
     }
   }
   SECTION("transition coordinator") {
-    REQUIRE(is_transition_coordinator<
-            details_::dummy_transition_coordinator>::value);
+    using machine_type =
+        details_::dummy_machine<states_list<details_::dummy_state>,
+                                events_list<details_::dummy_event>>;
+    using target_type =
+        details_::dummy_transition_coordinator<machine_type,
+                                               details_::dummy_event>;
+    REQUIRE(
+        is_transition_coordinator_details_::has_typenames<target_type>::value);
+    REQUIRE(is_transition_coordinator<target_type>::value);
   }
   SECTION("state container") {
     REQUIRE(has_states_list_type<details_::dummy_state_container>::value);
-    REQUIRE(is_state_container_details_::has_on_initial_entry<
-            details_::dummy_state_container>::value);
-    REQUIRE(is_state_container_details_::has_on_final_exit<
-            details_::dummy_state_container>::value);
-    REQUIRE(is_state_container_details_::has_on_exit<
-            details_::dummy_state_container>::value);
-    REQUIRE(is_state_container_details_::has_on_entry<
-            details_::dummy_state_container>::value);
-    REQUIRE(is_state_container_details_::has_on_reentry<
-            details_::dummy_state_container>::value);
-    REQUIRE(is_state_container_details_::has_schedule_acceptable_transitions<
-            details_::dummy_state_container>::value);
     REQUIRE(is_state_container<details_::dummy_state_container>::value);
   }
 }

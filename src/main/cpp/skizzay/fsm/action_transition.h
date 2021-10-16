@@ -9,9 +9,12 @@
 namespace skizzay::fsm {
 
 namespace action_transition_details_ {
+
+template <typename, typename, typename, typename> struct impl;
+
 template <concepts::state CurrentState, concepts::state NextState,
           concepts::event Event, std::invocable<Event const &> Action>
-struct impl {
+struct impl<CurrentState, NextState, Event, Action> {
   using current_state_type = CurrentState;
   using next_state_type = NextState;
   using event_type = Event;

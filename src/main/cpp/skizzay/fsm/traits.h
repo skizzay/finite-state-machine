@@ -110,12 +110,13 @@ template <typename T> struct dummy_child_ancestor {
   T t;
 };
 
+template <typename Machine, typename Event>
 struct dummy_transition_coordinator {
+  using machine_type = Machine;
+  using event_type = Event;
   template <typename State>
-  using self_transitions_for_state = std::index_sequence<>;
-
-  template <std::size_t I, typename State, typename Machine>
-  bool schedule_upon_acceptance(State const &, Machine const &);
+  bool schedule_accepted_transitions(State const &, Machine const &);
+  void execute_scheduled_transitions(Machine &);
 };
 
 struct dummy_state_container {
@@ -126,14 +127,6 @@ struct dummy_state_container {
   template <typename PreviousState, typename CurrentState, typename Machine,
             typename Event>
   void on_entry(Machine &, Event const &);
-  template <typename State, typename Machine, typename Event>
-  void on_reentry(Machine &, Event const &);
-  template <typename CurrentState, typename NextState, typename Machine,
-            typename Event>
-  void on_exit(Machine &, Event const &);
-  template <typename Machine, typename TransitionCoordinator>
-  bool schedule_acceptable_transitions(Machine const &,
-                                       TransitionCoordinator &) const;
 };
 } // namespace details_
 
@@ -173,6 +166,7 @@ struct is_state
           std::negation<std::disjunction<std::is_void<T>, std::is_pointer<T>>>,
           std::disjunction<std::is_copy_constructible<T>,
                            std::is_move_constructible<T>>> {};
+
 template <typename T>
 struct is_state<T &> : is_state<std::remove_const_t<T>> {};
 
@@ -189,6 +183,27 @@ struct has_events_list_type : std::false_type {};
 template <typename T>
 struct has_events_list_type<T, std::void_t<typename T::events_list_type>>
     : is_type_list<typename T::events_list_type> {};
+
+namespace is_state_container_details_ {
+
+template <typename, bool> struct has_method_signatures : std::false_type {};
+
+template <typename T>
+    struct has_method_signatures<T, true>
+    : std::bool_constant <
+      requires(T const &ct, T &t,
+               details_::dummy_machine<typename T::states_list_type,
+                                       std::tuple<details_::dummy_event>> &dm) {
+  { ct.template is<front_t<typename T::states_list_type>>() }
+  noexcept->std::same_as<bool>;
+  {t.on_initial_entry(dm)};
+  {t.on_final_exit(dm)};
+} > {};
+} // namespace is_state_container_details_
+
+template <typename T>
+using is_state_container = is_state_container_details_::has_method_signatures<
+    T, has_states_list_type<T>::value>;
 
 namespace is_transition_details_ {
 
@@ -264,17 +279,22 @@ using is_self_transition =
 
 template <typename T>
 using is_transition_table =
-    std::conjunction<is_template<T, std::tuple>, all<T, is_transition>>;
+    std::conjunction<is_template<std::remove_cvref_t<T>, std::tuple>,
+                     all<std::remove_cvref_t<T>, is_transition>>;
 
 namespace is_machine_details_ {
 template <bool, typename> struct has_signatures : std::false_type {};
 
 template <typename T>
-requires requires(T &t, T const &ct, details_::dummy_event const &cde) {
+requires requires(T &t, T const &ct,
+                  front_t<typename T::events_list_type> const &cde) {
   {t.start()};
   {t.stop()};
-  { t.on(cde) } -> std::same_as<bool>;
-  { ct.template is<details_::dummy_state, details_::dummy_state>() }
+  {t.on(cde)};
+  {
+    ct.template is<front_t<typename T::states_list_type>,
+                   front_t<typename T::states_list_type>>()
+  }
   noexcept->std::same_as<bool>;
 }
 struct has_signatures<true, T> : std::true_type {};
@@ -285,6 +305,20 @@ struct contains_transition : std::false_type {};
 template <typename Machine, typename Transition>
 struct contains_transition<Machine, Transition, true>
     : contains<typename Machine::transition_table_type, Transition> {};
+
+template <typename, typename, bool> struct contains_state : std::false_type {};
+
+template <typename Machine, typename State>
+struct contains_state<Machine, State, true>
+    : contains<typename Machine::states_list_type, State> {};
+
+template <typename, typename, bool>
+struct contains_state_containers_states : std::false_type {};
+
+template <typename Machine, typename StateContainer>
+struct contains_state_containers_states<Machine, StateContainer, true>
+    : contains_all<typename Machine::states_list_type,
+                   typename StateContainer::states_list_type> {};
 } // namespace is_machine_details_
 
 template <typename T>
@@ -292,13 +326,16 @@ using is_machine = is_machine_details_::has_signatures<
     std::conjunction_v<std::is_destructible<T>,
                        std::disjunction<std::is_copy_constructible<T>,
                                         std::is_move_constructible<T>>,
-                       has_states_list_type<T>>,
+                       has_states_list_type<T>, has_events_list_type<T>>,
     T>;
 
-template <typename Machine, typename Transition>
-using is_machine_for =
-    is_machine_details_::contains_transition<Machine, Transition,
-                                             is_machine<Machine>::value>;
+template <typename Machine, typename... Ts>
+using is_machine_for = std::disjunction<
+    std::conjunction<is_machine_details_::contains_transition<
+        Machine, Ts, is_machine<Machine>::value>...>,
+    std::conjunction<is_machine_details_::contains_state<
+        Machine, Ts,
+        std::conjunction_v<is_state<Ts>, is_machine<Machine>>>...>>;
 
 namespace is_ancestry_details_ {
 template <typename T>
@@ -388,126 +425,32 @@ using is_machine_ancestry =
     std::conjunction<is_ancestry<T>, is_ancestry_details_::has_machine<T>>;
 
 namespace is_transition_coordinator_details_ {
-template <typename, typename = void>
-struct has_template_self_transitions_for_state : std::false_type {};
+template <typename, typename = void> struct has_typenames : std::false_type {};
 
 template <typename T>
-struct has_template_self_transitions_for_state<
-    T, std::void_t<typename T::template self_transitions_for_state<
-           details_::dummy_state>>>
-    : is_integer_sequence<typename T::template self_transitions_for_state<
-          details_::dummy_state>> {};
+struct has_typenames<T, std::void_t<typename T::machine_type,
+                                    typename T::machine_type::events_list_type,
+                                    typename T::event_type>>
+    : std::conjunction<is_machine<typename T::machine_type>,
+                       is_event<typename T::event_type>,
+                       contains<typename T::machine_type::events_list_type,
+                                typename T::event_type>> {};
 
-template <typename, typename = void>
-struct has_schedule_upon_acceptance : std::false_type {};
+template <typename, bool> struct has_method_signatures : std::false_type {};
 
 template <typename T>
-struct has_schedule_upon_acceptance<
-    T, std::void_t<
-           decltype(std::declval<T &>()
-                        .template schedule_upon_acceptance<std::size_t{0}>(
-                            std::declval<details_::dummy_state const &>(),
-                            std::declval<
-                                details_::dummy_machine_ancestry const &>()))>>
-    : std::is_same<
-          bool,
-          decltype(std::declval<T &>()
-                       .template schedule_upon_acceptance<std::size_t{0}>(
-                           std::declval<details_::dummy_state const &>(),
-                           std::declval<
-                               details_::dummy_machine_ancestry const &>()))> {
-};
+    struct has_method_signatures<T, true>
+    : std::bool_constant <
+      requires(T &t, typename T::machine_type const &cm,
+               front_t<typename T::machine_type::states_list_type> const &cs) {
+  t.schedule_accepted_transitions(cs, cm);
+} > {};
 } // namespace is_transition_coordinator_details_
 
 template <typename T>
-struct is_transition_coordinator
-    : std::conjunction<
-          is_transition_coordinator_details_::
-              has_template_self_transitions_for_state<T>,
-          is_transition_coordinator_details_::has_schedule_upon_acceptance<T>> {
-};
-
-namespace is_state_container_details_ {
-template <typename T>
-    struct has_is_template : std::bool_constant < requires(T const &ct) {
-  { ct.template is<details_::dummy_state>() }
-  noexcept->std::same_as<bool>;
-} > {};
-
-template <typename T>
-    struct has_on_initial_entry
-    : std::bool_constant <
-      requires(T &t,
-               details_::dummy_machine<typename T::states_list_type,
-                                       std::tuple<details_::dummy_event>> &dm) {
-  t.on_initial_entry(dm);
-} > {};
-
-template <typename T>
-    struct has_on_final_exit
-    : std::bool_constant <
-      requires(T &t,
-               details_::dummy_machine<typename T::states_list_type,
-                                       std::tuple<details_::dummy_event>> &dm) {
-  t.on_final_exit(dm);
-} > {};
-
-template <typename T>
-concept is_child_ancestry_concept = is_child_ancestry<T>::value;
-
-template <typename T>
-    struct has_on_exit
-    : std::bool_constant <
-      requires(T &t,
-               details_::dummy_machine<typename T::states_list_type,
-                                       std::tuple<details_::dummy_event>> &dm,
-               details_::dummy_event const &cde) {
-  t.template on_exit<front_t<typename T::states_list_type>,
-                     skizzay::fsm::details_::dummy_state>(dm, cde);
-} > {};
-
-template <typename T>
-    struct has_on_entry
-    : std::bool_constant <
-      requires(T &t,
-               details_::dummy_machine<typename T::states_list_type,
-                                       std::tuple<details_::dummy_event>> &dm,
-               details_::dummy_event const &cde) {
-  t.template on_entry<details_::dummy_state,
-                      front_t<typename T::states_list_type>>(dm, cde);
-} > {};
-
-template <typename T>
-    struct has_on_reentry
-    : std::bool_constant <
-      requires(T &t,
-               details_::dummy_machine<typename T::states_list_type,
-                                       std::tuple<details_::dummy_event>> &dm,
-               details_::dummy_event const &cde) {
-  t.template on_reentry<front_t<typename T::states_list_type>>(dm, cde);
-} > {};
-
-template <typename T>
-    struct has_schedule_acceptable_transitions
-    : std::bool_constant <
-      requires(
-          T const &ct,
-          details_::dummy_machine<typename T::states_list_type,
-                                  std::tuple<details_::dummy_event>> const &cdm,
-          details_::dummy_transition_coordinator &dtc) {
-  { ct.schedule_acceptable_transitions(cdm, dtc) } -> std::same_as<bool>;
-} > {};
-} // namespace is_state_container_details_
-
-template <typename T>
-using is_state_container = std::conjunction<
-    has_states_list_type<T>,
-    is_state_container_details_::has_on_initial_entry<T>,
-    is_state_container_details_::has_on_final_exit<T>,
-    is_state_container_details_::has_on_exit<T>,
-    is_state_container_details_::has_on_entry<T>,
-    is_state_container_details_::has_on_reentry<T>,
-    is_state_container_details_::has_schedule_acceptable_transitions<T>>;
+using is_transition_coordinator =
+    is_transition_coordinator_details_::has_method_signatures<
+        T, is_transition_coordinator_details_::has_typenames<T>::value>;
 
 namespace list_details_ {
 template <bool, typename, typename...> struct list_impl;
@@ -532,6 +475,11 @@ using state_containers_list =
     typename list_details_::list<struct state_containers_list_tag,
                                  is_state_container, Ts...>::type;
 
+template <typename... Ts>
+using transitions_list =
+    typename list_details_::list<struct transitions_list_tag, is_transition,
+                                 Ts...>::type;
+
 namespace containers_containing_state_details_ {
 template <typename StateContainersList, typename State> class impl {
   template <typename StateContainer>
@@ -539,6 +487,34 @@ template <typename StateContainersList, typename State> class impl {
 
 public:
   using type = filter_t<StateContainersList, test>;
+};
+
+template <typename StateContainersList, typename TransitionTable,
+          typename Event>
+class current_state_impl {
+  template <typename StateContainer, typename Transition>
+  using has_current_state = contains<typename StateContainer::states_list_type,
+                                     typename Transition::current_state_type>;
+
+  template <typename StateContainer> struct is_compatible_transition {
+    template <typename Transition>
+    using test = std::conjunction<
+        has_current_state<StateContainer, Transition>,
+        std::is_convertible<
+            std::remove_cvref_t<typename Transition::event_type> const &,
+            Event const &>>;
+  };
+
+  template <typename StateContainer>
+  using has_applicable_transition = std::negation<
+      empty<filter_t<TransitionTable,
+                     is_compatible_transition<StateContainer>::template test>>>;
+
+public:
+  using type =
+      filter_t<StateContainersList,
+               current_state_impl<StateContainersList, TransitionTable,
+                                  Event>::template has_applicable_transition>;
 };
 } // namespace containers_containing_state_details_
 
@@ -552,6 +528,12 @@ using containers_containing_state_t =
 template <typename StateContainersList, typename State>
 using state_container_for_t =
     front_t<containers_containing_state_t<StateContainersList, State>>;
+
+template <typename StateContainersList, typename TransitionTable,
+          typename Event>
+using containers_of_current_state_t =
+    typename containers_containing_state_details_::current_state_impl<
+        StateContainersList, TransitionTable, Event>::type;
 
 template <typename T> using event_t = typename T::event_type;
 
@@ -577,6 +559,14 @@ template <typename T>
 using states_list_t =
     typename states_list_t_details_::states_list_t_impl<T>::type;
 
+template <typename T>
+using current_states_list_t =
+    as_container_t<unique_t<map_t<T, current_state_t>>, states_list>;
+
+template <typename T>
+using next_states_list_t =
+    as_container_t<unique_t<map_t<T, next_state_t>>, states_list>;
+
 namespace events_list_t_details_ {
 template <typename T, typename = void> struct events_list_t_impl {
   using type = typename T::events_list_type;
@@ -591,8 +581,32 @@ template <typename T>
 using events_list_t =
     typename events_list_t_details_::events_list_t_impl<T>::type;
 
+namespace transition_table_t_details_ {
 template <typename T>
-using transition_table_t = typename T::transition_table_type;
+    struct has_typename_transition_table_type
+    : std::bool_constant < requires() {
+  typename T::transition_table_type;
+} > {};
+
+template <typename> struct impl;
+
+template <typename T>
+requires has_typename_transition_table_type<T>::value struct impl<T> {
+  using type = typename T::transition_table_type;
+};
+
+template <typename T>
+requires std::negation_v<has_typename_transition_table_type<T>> && requires {
+  typename T::machine_type;
+}
+struct impl<T> {
+  using type = typename impl<typename T::machine_type>::type;
+};
+
+} // namespace transition_table_t_details_
+
+template <typename T>
+using transition_table_t = typename transition_table_t_details_::impl<T>::type;
 
 namespace transition_at_t_details_ {
 template <std::size_t I, typename T, typename = void> struct impl {

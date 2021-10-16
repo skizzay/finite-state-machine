@@ -52,10 +52,12 @@ template <typename, typename, std::size_t> struct impl;
 template <template <typename...> typename Template, typename T, typename... Ts,
           typename U, std::size_t I>
 struct impl<Template<T, Ts...>, U, I> {
-  using type =
-      std::conditional_t<std::is_same_v<T, U>,
-                         std::integral_constant<std::size_t, I>,
-                         typename impl<Template<Ts...>, U, I + 1>::type>;
+  using type = typename impl<Template<Ts...>, U, I + 1>::type;
+};
+template <template <typename...> typename Template, typename T, typename... Ts,
+          std::size_t I>
+struct impl<Template<T, Ts...>, T, I> {
+  using type = std::integral_constant<std::size_t, I>;
 };
 } // namespace index_of_details_
 
@@ -219,8 +221,14 @@ template <typename T, template <typename> typename F>
 using map_t = typename map<T, F>::type;
 template <template <typename> typename F,
           template <typename...> typename Template, typename... Elements>
+requires requires { typename std::void_t<typename F<Elements>::type...>; }
 struct map<Template<Elements...>, F> {
   using type = Template<typename F<Elements>::type...>;
+};
+template <template <typename> typename F,
+          template <typename...> typename Template, typename... Elements>
+struct map<Template<Elements...>, F> {
+  using type = Template<F<Elements>...>;
 };
 
 template <typename, typename, template <typename, typename> typename>
@@ -253,6 +261,13 @@ template <template <typename...> typename Template,
 struct filter<Template<>, Predicate> {
   using type = Template<>;
 };
+
+template <template <typename> typename Predicate> struct negate {
+  template <typename T> using apply = std::negation<Predicate<T>>;
+};
+
+template <typename, typename> struct remove;
+template <typename T, typename U> using remove_t = typename remove<T, U>::type;
 
 namespace details_ {
 template <typename, typename> struct unique_impl;

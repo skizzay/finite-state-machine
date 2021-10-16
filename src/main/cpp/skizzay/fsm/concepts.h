@@ -49,11 +49,16 @@ concept self_transition = is_self_transition<T>::value;
 template <typename T>
 concept transition_table = is_transition_table<T>::value;
 
+template <typename Transition, typename TransitionTable>
+concept transition_in =
+    transition<Transition> && transition_table<TransitionTable> &&
+    contains_v<TransitionTable, Transition>;
+
 template <typename T>
 concept machine = is_machine<T>::value;
 
-template <typename M, typename T>
-concept machine_for = is_machine_for<M, T>::value;
+template <typename M, typename... Ts>
+concept machine_for = is_machine_for<M, Ts...>::value;
 
 template <typename T>
 concept ancestry = skizzay::fsm::is_ancestry<T>::value;
@@ -80,6 +85,15 @@ concept transition_coordinator =
 
 template <typename T>
 concept state_container = skizzay::fsm::is_state_container<T>::value;
+
+template <typename T>
+concept list_of_state_containers =
+    type_list<T> && skizzay::fsm::all_v<T, is_state_container>;
+
+template <typename T, typename StateContainerList>
+concept state_container_in =
+    state_container<T> && list_of_state_containers<StateContainerList> &&
+    contains_v<StateContainerList, T>;
 
 template <typename StateContainer, typename State>
 concept state_container_for = state_container<StateContainer> && state<State> &&
