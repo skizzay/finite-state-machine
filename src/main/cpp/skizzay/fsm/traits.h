@@ -452,6 +452,8 @@ using is_transition_coordinator =
     is_transition_coordinator_details_::has_method_signatures<
         T, is_transition_coordinator_details_::has_typenames<T>::value>;
 
+template <typename T> using is_entry_coordinator = std::true_type;
+
 namespace list_details_ {
 template <bool, typename, typename...> struct list_impl;
 template <typename Tag, typename... Ts> struct list_impl<true, Tag, Ts...> {

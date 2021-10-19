@@ -3,8 +3,10 @@
 #include <array>
 #include <cstddef>
 #include <skizzay/fsm/concepts.h>
+#include <skizzay/fsm/entry_coordinator.h>
 #include <skizzay/fsm/event.h>
 #include <skizzay/fsm/transition_coordinator.h>
+#include <type_traits>
 
 namespace {
 template <std::size_t> struct test_event { bool pass_acceptance = true; };
@@ -78,6 +80,9 @@ struct fake_machine {
   using states_list_type = skizzay::fsm::states_list_t<TransitionTable>;
   using events_list_type = skizzay::fsm::events_list_t<TransitionTable>;
   using transition_table_type = TransitionTable;
+  template <typename T>
+  using contains = std::bool_constant<skizzay::fsm::entry_coordinator_details_::
+                                          is_contained_v<states_list_type, T>>;
 
   transition_table_type transition_table;
 

@@ -84,6 +84,9 @@ concept transition_coordinator =
     skizzay::fsm::is_transition_coordinator<T>::value;
 
 template <typename T>
+concept entry_coordinator = is_entry_coordinator<T>::value;
+
+template <typename T>
 concept state_container = skizzay::fsm::is_state_container<T>::value;
 
 template <typename T>

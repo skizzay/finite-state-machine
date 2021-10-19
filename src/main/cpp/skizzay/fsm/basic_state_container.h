@@ -65,10 +65,14 @@ template <concepts::state State> struct container {
     do_entry(machine, initial_entry_event);
   }
 
-  template <std::same_as<State>, concepts::machine_for<State> Machine,
+  template <concepts::entry_coordinator EntryCoordinator,
+            concepts::machine_for<State> Machine,
             concepts::event_in<events_list_t<Machine>> Event>
-  constexpr void on_entry(Machine &machine, Event const &event) {
-    do_entry(machine, event);
+  constexpr void on_entry(EntryCoordinator const &entry_coordinator,
+                          Machine &machine, Event const &event) {
+    if (entry_coordinator.template is_scheduled<State>()) {
+      do_entry(machine, event);
+    }
   }
 
   template <concepts::machine_for<State> Machine>

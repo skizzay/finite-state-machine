@@ -3,6 +3,7 @@
 #include <catch.hpp>
 #include <memory>
 #include <skizzay/fsm/ancestors.h>
+#include <skizzay/fsm/entry_coordinator.h>
 #include <skizzay/fsm/event.h>
 #include <skizzay/fsm/guarded_transition.h>
 #include <skizzay/fsm/simple_transition.h>
@@ -110,7 +111,9 @@ SCENARIO("single state container event handling",
       }
 
       WHEN("entered") {
-        target.on_entry<type>(machine, event);
+        entry_coordinator<states_list<type>> ec;
+        ec.schedule_entry<type>();
+        target.on_entry(ec, machine, event);
         THEN("the state is active") {
           REQUIRE(target.is_active());
           REQUIRE_FALSE(target.is_inactive());

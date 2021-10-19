@@ -17,7 +17,9 @@ template <concepts::list_of_states StatesList> struct impl {
   using states_list_type = StatesList;
   using entry_states_table = std::bitset<length_v<StatesList>>;
   template <typename T>
-  static inline constexpr bool contains = is_contained_v<StatesList, T>;
+  using contains = std::bool_constant<is_contained_v<StatesList, T>>;
+  template <typename T>
+  static inline constexpr bool contains_v = is_contained_v<StatesList, T>;
 
   template <concepts::state_in<StatesList> State>
   constexpr bool is_scheduled() const noexcept {
@@ -25,7 +27,7 @@ template <concepts::list_of_states StatesList> struct impl {
   }
 
   template <concepts::state_in<StatesList> State>
-  constexpr void schedule_entry(State const &) noexcept {
+  constexpr void schedule_entry() noexcept {
     entry_states_table_.set(index_of_v<StatesList, State>);
   }
 
