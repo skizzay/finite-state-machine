@@ -447,10 +447,11 @@ template <typename T>
 } > {};
 } // namespace is_transition_coordinator_details_
 
-template <typename T>
-using is_transition_coordinator =
-    is_transition_coordinator_details_::has_method_signatures<
-        T, is_transition_coordinator_details_::has_typenames<T>::value>;
+// template <typename T>
+// using is_transition_coordinator =
+//     is_transition_coordinator_details_::has_method_signatures<
+//         T, is_transition_coordinator_details_::has_typenames<T>::value>;
+template <typename T> using is_transition_coordinator = std::true_type;
 
 template <typename T> using is_entry_coordinator = std::true_type;
 

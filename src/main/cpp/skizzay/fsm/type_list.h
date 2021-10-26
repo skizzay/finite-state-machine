@@ -291,4 +291,41 @@ template <typename T> using unique_t = typename unique<T>::type;
 template <template <typename...> typename Template, typename... Elements>
 struct unique<Template<Elements...>>
     : details_::unique_impl<Template<Elements...>, Template<>> {};
+
+namespace intersection_of_details_ {
+template <typename T> struct contained {
+  template <typename U> using in = contains<T, U>;
+};
+template <std::integral Integral, Integral... Is>
+struct contained<std::integer_sequence<Integral, Is...>> {
+  template <std::size_t I>
+  using in = contains<std::integer_sequence<Integral, Is...>,
+                      std::integral_constant<Integral, I>>;
+};
+} // namespace intersection_of_details_
+
+template <typename...> struct intersection_of;
+template <typename... Ts>
+using intersection_of_t = typename intersection_of<Ts...>::type;
+template <typename T> struct intersection_of<T> { using type = T; };
+template <template <typename...> typename Template, typename... Ts,
+          typename... Us>
+struct intersection_of<Template<Ts...>, Template<Us...>> {
+  using type = filter_t<Template<Ts...>, intersection_of_details_::contained<
+                                             Template<Us...>>::template in>;
+};
+template <std::integral Integral, Integral... Ts, Integral... Us>
+struct intersection_of<std::integer_sequence<Integral, Ts...>,
+                       std::integer_sequence<Integral, Us...>> {
+  using type =
+      filter_t<std::integer_sequence<Integral, Ts...>,
+               intersection_of_details_::contained<
+                   std::integer_sequence<Integral, Us...>>::template in>;
+};
+template <typename T0, typename T1, typename... Ts>
+struct intersection_of<T0, T1, Ts...> {
+  using type = typename intersection_of<typename intersection_of<T0, T1>::type,
+                                        Ts...>::type;
+};
+
 } // namespace skizzay::fsm

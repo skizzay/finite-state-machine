@@ -2,6 +2,7 @@
 
 #include <bitset>
 #include <skizzay/fsm/concepts.h>
+#include <skizzay/fsm/node_transition_coordinator.h>
 #include <skizzay/fsm/optional_reference.h>
 #include <tuple>
 
@@ -44,49 +45,26 @@ template <concepts::state_container... StateContainers> class container {
 
   template <typename> friend struct transition_coordinator;
   template <typename ParentTransitionCoordinator>
-  struct transition_coordinator {
+  struct transition_coordinator
+      : node_transition_coordinator<container<StateContainers...>,
+                                    ParentTransitionCoordinator> {
     template <typename State>
     static constexpr std::size_t container_index =
         container_index_calc<typename container<StateContainers...>::tuple_type,
                              State, 0>::value;
 
-    constexpr explicit transition_coordinator(
-        ParentTransitionCoordinator &parent_transition_coordinator,
-        container<StateContainers...> &container) noexcept
-        : parent_{parent_transition_coordinator}, container_{container} {}
+    using node_transition_coordinator<
+        container<StateContainers...>,
+        ParentTransitionCoordinator>::node_transition_coordinator;
 
     template <concepts::transition Transition, concepts::machine Machine>
     constexpr void on_transition(Transition &transition, Machine &machine,
                                  event_t<Transition> const &event) {
-      exiting_container_ |=
-          !contains_v<states_list_t<container<StateContainers...>>,
-                      next_state_t<Transition>>;
       triggered_containers_.set(container_index<current_state_t<Transition>>);
-      if constexpr (contains_v<states_list_t<container<StateContainers...>>,
-                               next_state_t<Transition>>) {
-        if constexpr (!concepts::self_transition<Transition>) {
-          using next_state_type = next_state_t<Transition>;
-          std::get<container_index<next_state_type>>(
-              container_.state_containers_)
-              .template on_entry<next_state_type>(machine, event);
-        }
-      } else {
-        exiting_container_ = true;
-        parent_.on_transition(transition, machine, event);
-      }
-    }
-
-    template <concepts::state State> constexpr void schedule_entry() noexcept {
-      parent_.schedule_entry();
-    }
-
-    template <concepts::state State>
-    constexpr decltype(auto) get_transitions(State const &state) {
-      return parent_.get_transitions(state);
-    }
-
-    constexpr bool will_exit_container() const noexcept {
-      return exiting_container_;
+      this->node_transition_coordinator<
+          container<StateContainers...>,
+          ParentTransitionCoordinator>::on_transition(transition, machine,
+                                                      event);
     }
 
     template <concepts::state_container Container, concepts::machine Machine>
@@ -99,10 +77,7 @@ template <concepts::state_container... StateContainers> class container {
     }
 
   private:
-    ParentTransitionCoordinator &parent_;
-    container<StateContainers...> &container_;
     std::bitset<sizeof...(StateContainers)> triggered_containers_;
-    bool exiting_container_ = false;
   };
 
 public:
@@ -177,9 +152,9 @@ public:
             concepts::event_in<events_list_t<Machine>> Event>
   constexpr void on_entry(EntryCoordinator const &entry_coordinator,
                           Machine &machine, Event const &event) {
-    using scheduled_containers_list = filter_t<
-        tuple_type,
-        contains_entry_state<states_list_t<EntryCoordinator>>::template test>;
+    using scheduled_containers_list =
+        typename EntryCoordinator::applicable_state_containers_list_type<
+            tuple_type>;
     auto const enter_child_container =
         [&]<typename Container>(Container &child_container) {
           if constexpr (contains_v<scheduled_containers_list, Container>) {
@@ -206,7 +181,8 @@ public:
         filter_t<tuple_type, is_state_container_for<
                                  ParentTransitionCoordinator>::template test>,
         state_containers_list>;
-    transition_coordinator coordinator{parent_transition_coordinator, *this};
+    transition_coordinator<ParentTransitionCoordinator> coordinator{
+        parent_transition_coordinator, *this};
     auto const result = [&]<template <typename...> typename Template,
                             typename... FoundStateContainers>(
         Template<FoundStateContainers...> const) {

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <numeric>
 #include <skizzay/fsm/concepts.h>
 #include <skizzay/fsm/entry_coordinator.h>
 #include <skizzay/fsm/event.h>
@@ -22,6 +23,21 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
     event_entry_count.fill(0);
     event_reentry_count.fill(0);
     event_exit_count.fill(0);
+  }
+
+  auto total_event_entry_count() const noexcept {
+    return std::accumulate(std::begin(event_entry_count),
+                           std::end(event_entry_count), std::size_t{});
+  }
+
+  auto total_event_reentry_count() const noexcept {
+    return std::accumulate(std::begin(event_reentry_count),
+                           std::end(event_reentry_count), std::size_t{});
+  }
+
+  auto total_event_exit_count() const noexcept {
+    return std::accumulate(std::begin(event_exit_count),
+                           std::end(event_exit_count), std::size_t{});
   }
 
   void on_entry(skizzay::fsm::initial_entry_event_t const &) noexcept {

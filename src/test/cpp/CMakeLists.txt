@@ -7,7 +7,7 @@ target_include_directories(fsm_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/main
 target_sources(fsm_unit_tests PRIVATE main.cpp
   skizzay/fsm/action_transition.t.cpp
   skizzay/fsm/ancestors.t.cpp
-  # skizzay/fsm/flat_state_container.t.cpp
+  skizzay/fsm/flat_state_container.t.cpp
   skizzay/fsm/guarded_action_transition.t.cpp
   skizzay/fsm/guarded_transition.t.cpp
   # skizzay/fsm/hierarchical_state_container.t.cpp
