@@ -7,6 +7,8 @@ namespace skizzay::fsm {
 namespace node_transition_coordinator_details_ {
 template <typename StateContainer, typename ParentTransitionCoordinator>
 struct impl {
+  using transition_table_type = transition_table_t<ParentTransitionCoordinator>;
+ 
   constexpr explicit impl(
       ParentTransitionCoordinator &parent_transition_coordinator,
       StateContainer &container) noexcept

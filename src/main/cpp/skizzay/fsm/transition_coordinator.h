@@ -6,7 +6,6 @@
 #include <iostream>
 #include <skizzay/fsm/concepts.h>
 #include <skizzay/fsm/entry_coordinator.h>
-// #include <skizzay/fsm/transition_queue.h>
 #include <skizzay/fsm/trigger.h>
 #include <skizzay/fsm/type_list.h>
 #include <stdexcept>
@@ -90,6 +89,8 @@ struct impl {
   get_transitions(concepts::state auto const &) noexcept {
     return {};
   }
+
+  constexpr auto const &entries() const noexcept { return entry_coordinator_; }
 
 private:
   transition_table_t<Machine> &transition_table_;

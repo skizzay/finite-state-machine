@@ -10,7 +10,7 @@ target_sources(fsm_unit_tests PRIVATE main.cpp
   skizzay/fsm/flat_state_container.t.cpp
   skizzay/fsm/guarded_action_transition.t.cpp
   skizzay/fsm/guarded_transition.t.cpp
-  # skizzay/fsm/hierarchical_state_container.t.cpp
+  skizzay/fsm/hierarchical_state_container.t.cpp
   skizzay/fsm/orthogonal_state_container.t.cpp
   skizzay/fsm/simple_transition.t.cpp
   skizzay/fsm/single_state_container.t.cpp
@@ -23,7 +23,7 @@ target_link_libraries(fsm_integration_tests fsm Catch2::Catch2)
 set_property(TARGET fsm_integration_tests PROPERTY CXX_STANDARD 20)
 target_include_directories(fsm_integration_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/main/cpp)
 target_sources(fsm_integration_tests PRIVATE main.cpp
-  #skizzay/fsm/integration/full_fsm.t.cpp
+  skizzay/fsm/integration/full_fsm.t.cpp
 )
 
 

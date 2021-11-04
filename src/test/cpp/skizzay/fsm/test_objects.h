@@ -15,6 +15,8 @@ template <std::size_t> struct test_event { bool pass_acceptance = true; };
 template <std::size_t Id, std::size_t NumEvents> struct test_state {
   std::size_t initial_entry_count = 0;
   std::size_t final_exit_count = 0;
+  std::size_t epsilon_event_entry_count = 0;
+  std::size_t epsilon_event_exit_count = 0;
   std::array<std::size_t, NumEvents> event_entry_count;
   std::array<std::size_t, NumEvents> event_reentry_count;
   std::array<std::size_t, NumEvents> event_exit_count;
@@ -27,7 +29,8 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
 
   auto total_event_entry_count() const noexcept {
     return std::accumulate(std::begin(event_entry_count),
-                           std::end(event_entry_count), std::size_t{});
+                           std::end(event_entry_count),
+                           epsilon_event_entry_count);
   }
 
   auto total_event_reentry_count() const noexcept {
@@ -37,7 +40,8 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
 
   auto total_event_exit_count() const noexcept {
     return std::accumulate(std::begin(event_exit_count),
-                           std::end(event_exit_count), std::size_t{});
+                           std::end(event_exit_count),
+                           epsilon_event_exit_count);
   }
 
   void on_entry(skizzay::fsm::initial_entry_event_t const &) noexcept {
@@ -46,12 +50,18 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
   template <std::size_t I> void on_entry(test_event<I> const &) noexcept {
     event_entry_count[I] += 1;
   }
+  void on_entry(skizzay::fsm::epsilon_event_t const) noexcept {
+    epsilon_event_entry_count += 1;
+  }
 
   void on_exit(skizzay::fsm::final_exit_event_t const &) noexcept {
     final_exit_count += 1;
   }
   template <std::size_t I> void on_exit(test_event<I> const &) noexcept {
     event_exit_count[I] += 1;
+  }
+  void on_exit(skizzay::fsm::epsilon_event_t const) noexcept {
+    epsilon_event_exit_count += 1;
   }
 
   template <std::size_t I> void on_reentry(test_event<I> const &) noexcept {

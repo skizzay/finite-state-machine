@@ -1,15 +1,32 @@
 #pragma once
 
 #include <skizzay/fsm/concepts.h>
+#include <skizzay/fsm/simple_transition.h>
+#include <skizzay/fsm/type_list.h>
+#include <type_traits>
 
 namespace skizzay::fsm {
 
 namespace machine_as_state_container_details_ {
+
+template <typename Machine> struct as_self_transition {
+  template <typename Event>
+  using type = simple_transition<Machine, Machine, Event>;
+};
+
+template <typename Machine>
+using self_transition_table_for_each_event_t =
+    as_container_t<map_t<events_list_t<Machine>,
+                         typename as_self_transition<Machine>::template type>,
+                   std::tuple>;
+
 template <concepts::machine Machine> class container {
   Machine machine_;
 
 public:
   using states_list_type = states_list<Machine>;
+  using self_transition_table_for_each_event_type =
+      self_transition_table_for_each_event_t<Machine>;
 
   template <concepts::machine Machine2>
   constexpr explicit container(Machine2 &&machine) noexcept(
@@ -46,36 +63,32 @@ public:
   template <concepts::machine ParentMachine>
   constexpr void on_final_exit(ParentMachine &) {
     // TODO: Determine if we need to pass in the parent machine
+    if (machine_.is_running()) {
+      machine_.stop();
+    }
+  }
+
+  template <concepts::state PreviousState, std::same_as<Machine>,
+            concepts::machine ParentMachine, concepts::event Event>
+  void on_entry(ParentMachine &, Event const &event) {
+    if (machine_.is_stopped()) {
+      machine_.start();
+    }
+    machine_.on(event);
+  }
+
+  template <std::same_as<Machine>, concepts::machine ParentMachine,
+            concepts::event Event>
+  void on_reentry(ParentMachine &, Event const &event) {
+    machine_.on(event);
+  }
+
+  template <std::same_as<Machine>,
+            concepts::state_in<states_list_type> NextState,
+            concepts::machine ParentMachine, concepts::event Event>
+  void on_exit(ParentMachine &, Event const &event) {
+    machine_.on(event);
     machine_.stop();
-  }
-
-  template <concepts::state PreviousState,
-            concepts::state_in<states_list_type> CurrentState,
-            concepts::machine ParentMachine, concepts::event Event>
-  void on_entry(ParentMachine &, Event const &) {
-    if constexpr (concepts::event_in<Event, events_type_list>) {
-      // TODO: Determine if we need to pass in the parent machine
-      machine_.on_entry(event);
-    }
-  }
-
-  template <concepts::state_in<states_list_type> CurrentState,
-            concepts::machine ParentMachine, concepts::event Event>
-  void on_reentry(ParentMachine &, Event const &) {
-    if constexpr (concepts::event_in<Event, events_type_list>) {
-      // TODO: Determine if we need to pass in the parent machine
-      machine_.on_reentry(event);
-    }
-  }
-
-  template <concepts::state PreviousState,
-            concepts::state_in<states_list_type> CurrentState,
-            concepts::machine ParentMachine, concepts::event Event>
-  void on_exit(ParentMachine &, Event const &) {
-    if constexpr (concepts::event_in<Event, events_type_list>) {
-      // TODO: Determine if we need to pass in the parent machine
-      machine_.on_exit(event);
-    }
   }
 
   template <concepts::machine ParentMachine,

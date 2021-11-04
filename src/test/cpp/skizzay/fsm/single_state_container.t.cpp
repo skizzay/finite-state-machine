@@ -74,10 +74,10 @@ SCENARIO("single state container event handling",
       }
 
       AND_WHEN("finally exited") {
+        type const &current_state = target.current_state<type>();
         target.on_final_exit(machine);
 
         THEN("the exit callback was triggered") {
-          type const &current_state = target.current_state<type>();
           REQUIRE(1 == current_state.final_exit_count);
         }
 
@@ -191,16 +191,6 @@ SCENARIO("single state container state examining",
       bool const actual = contains_v<states_list_t<target_type>, type>;
 
       THEN("it's not held") { REQUIRE_FALSE(actual); }
-    }
-
-    AND_GIVEN("an instance of the container") {
-      target_type target;
-
-      WHEN("seeing if the container is that type") {
-        bool const actual = target.is<type>();
-
-        THEN("it's not held") { REQUIRE_FALSE(actual); }
-      }
     }
   }
 }

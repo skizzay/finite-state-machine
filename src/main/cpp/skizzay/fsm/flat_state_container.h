@@ -29,8 +29,8 @@ struct entry_visit_callback {
   constexpr void fire(Machine &machine, Event const &event,
                       EntryCoordinator const &entry_coordinator,
                       StateContainersVariant &states_container_variant) {
-    assert(nullptr != container &&
-           "Entry visit callback encountered null container");
+    assert(nullptr != callback &&
+           "Entry visit callback encountered null callback");
     std::invoke(callback, container, machine, event, entry_coordinator,
                 states_container_variant);
   }
@@ -70,7 +70,7 @@ struct visit_callback {
 
   void fire(Machine &machine, Event const &event,
             StateContainersVariant &state_containers_variant) {
-    assert(nullptr != container && "Visit callback encountered null container");
+    assert(nullptr != callback && "Visit callback encountered null callback");
     std::invoke(callback, container, machine, event, state_containers_variant);
   }
 
@@ -165,9 +165,15 @@ public:
   }
 
   template <concepts::state_in<states_list_type> S>
-  constexpr S &any_state() noexcept {
+  constexpr S &get() noexcept {
     return std::get<state_container_for_t<tuple_type, S>>(state_containers_)
         .template any_state<S>();
+  }
+
+  template <concepts::state_in<states_list_type> S>
+  constexpr S const &get() const noexcept {
+    return std::get<state_container_for_t<tuple_type, S>>(state_containers_)
+        .template get<S>();
   }
 
   template <concepts::state_in<states_list_type> S, concepts::ancestry Ancestry>
@@ -255,20 +261,19 @@ public:
   constexpr bool
   on_event(ParentTransitionCoordinator &parent_transition_coordinator,
            Machine &machine, Event const &event) {
-    auto const [has_been_scheduled, event_handling_result] =
-        std::visit(overload(
-                       [](std::monostate const) noexcept {
-                         return std::tuple{false, false};
-                       },
-                       [&](auto *const container) {
-                         node_transition_coordinator tc{
-                             parent_transition_coordinator, *this};
-                         bool const event_handling_result =
-                             container->on_event(tc, machine, event);
-                         return std::tuple{tc.has_been_scheduled(),
-                                           event_handling_result};
-                       }),
-                   current_state_container_);
+    auto const [has_been_scheduled, event_handling_result] = std::visit(
+        overload(
+            [](std::monostate const) noexcept {
+              return std::tuple{false, false};
+            },
+            [&](auto *const container) {
+              node_transition_coordinator tc{parent_transition_coordinator,
+                                             *this};
+              bool const event_handling_result =
+                  container->on_event(tc, machine, event);
+              return std::tuple{tc.has_been_scheduled(), event_handling_result};
+            }),
+        current_state_container_);
     if (has_been_scheduled) {
       current_state_container_ = std::monostate{};
     }

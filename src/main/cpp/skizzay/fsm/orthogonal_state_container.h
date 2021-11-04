@@ -186,9 +186,8 @@ public:
     auto const result = [&]<template <typename...> typename Template,
                             typename... FoundStateContainers>(
         Template<FoundStateContainers...> const) {
-      return std::tuple{(std::get<FoundStateContainers>(state_containers_)
-                             .on_event(coordinator, machine, event),
-                         ...)};
+      return std::tuple{std::get<FoundStateContainers>(state_containers_)
+                            .on_event(coordinator, machine, event)...};
     }
     (candidate_states_containers_list{});
     if (coordinator.will_exit_container()) {
