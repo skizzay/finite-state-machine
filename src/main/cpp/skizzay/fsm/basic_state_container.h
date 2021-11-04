@@ -2,7 +2,6 @@
 
 #include <skizzay/fsm/ancestors.h>
 #include <skizzay/fsm/concepts.h>
-#include <skizzay/fsm/container_status.h>
 #include <skizzay/fsm/event.h>
 #include <skizzay/fsm/optional_reference.h>
 #include <skizzay/fsm/reenter.h>
