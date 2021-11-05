@@ -79,11 +79,7 @@ public:
       : transition_table_{std::move_if_noexcept(transition_table)},
         root_state_container_{std::move_if_noexcept(root_state_container)} {}
 
-  constexpr bool is_running() const noexcept {
-    return machine_status::running == status_;
-  }
-
-  constexpr bool is_stopped() const noexcept { return !is_running(); }
+  constexpr machine_status status() const noexcept { return status_; }
 
   template <concepts::state_in<states_list_type>... States>
   constexpr bool is() const noexcept {
@@ -189,9 +185,13 @@ public:
       : impl_{std::forward<TransitionTable>(transition_table),
               std::forward<RootStateContainer>(root_state_container)} {}
 
-  constexpr bool is_running() const noexcept { return impl_.is_running(); }
+  constexpr bool is_running() const noexcept {
+    return machine_status::running == impl_.status();
+  }
 
-  constexpr bool is_stopped() const noexcept { return impl_.is_stopped(); }
+  constexpr bool is_stopped() const noexcept {
+    return machine_status::stopped == impl_.status();
+  }
 
   template <concepts::state_in<states_list_type>... States>
   constexpr bool is() const noexcept {
@@ -204,19 +204,25 @@ public:
   }
 
   constexpr void start() {
-    impl_.start();
-    impl_.internal_event_executor_.process_internal_events();
+    if (is_stopped()) {
+      impl_.start();
+      impl_.internal_event_executor_.process_internal_events();
+    }
   }
 
   constexpr void stop() {
-    impl_.stop();
-    impl_.internal_event_executor_.process_internal_events();
+    if (is_running()) {
+      impl_.stop();
+      impl_.internal_event_executor_.process_internal_events();
+    }
   }
 
   template <concepts::event_in<events_list_type> Event>
   constexpr void on(Event const &event) {
-    impl_.on(event);
-    impl_.internal_event_executor_.process_internal_events();
+    if (is_running()) {
+      impl_.on(event);
+      impl_.internal_event_executor_.process_internal_events();
+    }
   }
 };
 
