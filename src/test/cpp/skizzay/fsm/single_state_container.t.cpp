@@ -2,7 +2,6 @@
 
 #include <catch.hpp>
 #include <memory>
-#include <skizzay/fsm/ancestors.h>
 #include <skizzay/fsm/entry_coordinator.h>
 #include <skizzay/fsm/event.h>
 #include <skizzay/fsm/guarded_transition.h>

@@ -5,7 +5,6 @@ target_include_directories(fsm INTERFACE
 )
 target_sources(fsm INTERFACE
    skizzay/fsm/action_transition.h
-   skizzay/fsm/ancestors.h
    skizzay/fsm/basic_state_container.h
    skizzay/fsm/concepts.h
    skizzay/fsm/enter.h

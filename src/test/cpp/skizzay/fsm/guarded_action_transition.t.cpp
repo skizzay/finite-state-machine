@@ -1,5 +1,4 @@
 #include <catch.hpp>
-#include <skizzay/fsm/ancestors.h>
 #include <skizzay/fsm/guarded_action_transition.h>
 
 using namespace skizzay::fsm;

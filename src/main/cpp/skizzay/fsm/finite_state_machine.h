@@ -1,6 +1,5 @@
 #pragma once
 
-#include <skizzay/fsm/ancestors.h>
 #include <skizzay/fsm/concepts.h>
 #include <skizzay/fsm/event.h>
 #include <skizzay/fsm/internal_event_executor.h>
@@ -94,16 +93,6 @@ public:
   template <concepts::state_in<states_list_type> State>
   constexpr State &any_state() noexcept {
     return root_state_container_.template any_state<State>();
-  }
-
-  template <concepts::state_in<states_list_type> State>
-  constexpr auto ancestry_to() noexcept {
-    return root_state_container_.template ancestry_to<State>(ancestors{});
-  }
-
-  template <concepts::state_in<states_list_type> State>
-  constexpr auto ancestry_to() const noexcept {
-    return root_state_container_.template ancestry_to<State const>(ancestors{});
   }
 
   constexpr void start() {

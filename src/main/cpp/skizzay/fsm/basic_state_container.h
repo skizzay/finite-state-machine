@@ -1,6 +1,5 @@
 #pragma once
 
-#include <skizzay/fsm/ancestors.h>
 #include <skizzay/fsm/concepts.h>
 #include <skizzay/fsm/event.h>
 #include <skizzay/fsm/optional_reference.h>
@@ -43,11 +42,6 @@ template <typename Derived> struct container {
     using result_type = optional_reference<state_t<Derived> const>;
     return is_active() ? result_type{derived().get()}
                        : result_type{std::nullopt};
-  }
-
-  template <derived_container_state<Derived>, concepts::ancestry Ancestry>
-  constexpr auto ancestry_to(Ancestry ancestry) noexcept {
-    return ancestry.with_new_generation(derived().get());
   }
 
   template <concepts::machine Machine>
