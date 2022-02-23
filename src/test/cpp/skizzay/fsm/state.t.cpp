@@ -57,3 +57,8 @@ TEST_CASE("copyable constructible is a state", "[unit][state]") {
   REQUIRE(is_state<copy_constructible>::value);
   REQUIRE(concepts::state<copy_constructible>);
 }
+
+TEST_CASE("test state is a state", "[unit][state]") {
+  REQUIRE(is_state<test_objects::test_state<0, 1>>::value);
+  REQUIRE(concepts::state<test_objects::test_state<0, 1>>);
+}
