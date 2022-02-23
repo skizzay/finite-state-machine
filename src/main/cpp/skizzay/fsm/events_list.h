@@ -1,6 +1,8 @@
 #pragma once
 
 #include <skizzay/fsm/event.h>
+#include <skizzay/fsm/type_list.h>
+
 #include <type_traits>
 
 namespace skizzay::fsm {
@@ -12,6 +14,10 @@ struct is_events_list<Template<Events...>> : std::true_type {};
 namespace concepts {
 template <typename T>
 concept events_list = is_events_list<T>::value;
+
+template <typename Event, typename EventsList>
+concept event_in =
+    event<Event> && events_list<EventsList> && contains_v<EventsList, Event>;
 } // namespace concepts
 
 template <concepts::event... Events> struct events_list {};
