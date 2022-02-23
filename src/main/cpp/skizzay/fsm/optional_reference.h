@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <optional>
-#include <skizzay/fsm/concepts.h>
 #include <type_traits>
 #include <utility>
 

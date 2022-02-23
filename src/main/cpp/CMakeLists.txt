@@ -8,6 +8,7 @@ target_sources(fsm INTERFACE
    skizzay/fsm/optional_reference.h
    skizzay/fsm/overload.h
    skizzay/fsm/state.h
+   skizzay/fsm/state_queryable.h
    skizzay/fsm/transition.h
    skizzay/fsm/type_list.h
 )
