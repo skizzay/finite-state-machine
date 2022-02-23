@@ -7,6 +7,7 @@ target_include_directories(fsm_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/main
 target_sources(fsm_unit_tests PRIVATE
   skizzay/fsm/event.t.cpp
   skizzay/fsm/state.t.cpp
+  skizzay/fsm/state_accessible.t.cpp
   skizzay/fsm/state_queryable.t.cpp
   skizzay/fsm/transition.t.cpp
   skizzay/fsm/type_list.t.cpp

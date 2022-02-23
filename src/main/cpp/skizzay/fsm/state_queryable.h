@@ -20,7 +20,8 @@ template <typename T> struct template_member_function {
 template <typename T> template <typename State>
 requires concepts::state<State> && requires(T const &tc) {
   { tc.template current_state<State>() }
-  noexcept->std::same_as<optional_reference<State const>>;
+  noexcept
+      ->std::same_as<optional_reference<std::remove_reference_t<State> const>>;
 }
 struct template_member_function<T>::current_state<State> : std::true_type {};
 
