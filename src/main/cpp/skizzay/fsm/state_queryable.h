@@ -36,9 +36,10 @@ struct template_member_function<T>::is<State> : std::true_type {};
 template <typename T>
 // TODO: Check for visitation
 requires concepts::states_list<typename T::states_list_type> &&
-    all_v<typename T::states_list_type,
-          state_queryable_details_::template_member_function<
-              T>::template current_state>
+    (0 < length_v<typename T::states_list_type>)&&all_v<
+        typename T::states_list_type,
+        state_queryable_details_::template_member_function<
+            T>::template current_state>
         &&all_v<typename T::states_list_type,
                 state_queryable_details_::template_member_function<
                     T>::template is> struct is_state_queryable<T>

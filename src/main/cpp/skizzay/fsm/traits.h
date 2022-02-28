@@ -9,7 +9,6 @@ namespace skizzay::fsm {
 struct initial_entry_event_t;
 struct final_exit_event_t;
 
-
 template <typename> struct is_type_list : std::false_type {};
 
 template <template <typename...> typename Template, typename... Ts>
@@ -105,13 +104,4 @@ template <typename StateContainersList, typename TransitionTable,
 using containers_of_current_state_t =
     typename containers_containing_state_details_::current_state_impl<
         StateContainersList, TransitionTable, Event>::type;
-
-template <typename T>
-using current_states_list_t =
-    as_container_t<unique_t<map_t<T, current_state_t>>, states_list>;
-
-template <typename T>
-using next_states_list_t =
-    as_container_t<unique_t<map_t<T, next_state_t>>, states_list>;
-
 } // namespace skizzay::fsm
