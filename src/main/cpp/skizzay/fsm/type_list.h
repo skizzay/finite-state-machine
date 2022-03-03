@@ -8,11 +8,7 @@
 
 namespace skizzay::fsm {
 
-namespace simple_type_list_details_ {
-template <typename...> struct impl {};
-} // namespace simple_type_list_details_
-template <typename Tag, typename... Elements>
-using simple_type_list = simple_type_list_details_::impl<Elements...>;
+template <typename...> struct simple_type_list {};
 
 template <typename, template <typename> typename> struct all;
 template <typename T, template <typename> typename Template>

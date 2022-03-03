@@ -24,7 +24,13 @@ struct missing_next_state_type {
 struct valid_transition {
   using event_type = test_objects::test_event<0>;
   using current_state_type = test_objects::test_state<0, 1>;
-  using next_state_type = test_objects::test_state<0, 1>;
+  using next_state_type = test_objects::test_state<1, 1>;
+};
+
+struct self_transition {
+  using event_type = test_objects::test_event<0>;
+  using current_state_type = test_objects::test_state<0, 1>;
+  using next_state_type = current_state_type;
 };
 } // namespace
 
@@ -52,4 +58,14 @@ TEST_CASE("missing next state type is not a transition", "[unit][transition]") {
 TEST_CASE("valid transition is a transition", "[unit][transition]") {
   REQUIRE(is_transition<valid_transition>::value);
   REQUIRE(concepts::transition<valid_transition>);
+}
+
+TEST_CASE("non-transition is not a self-transition", "[unit][transition]") {
+  REQUIRE_FALSE(is_self_transition<missing_next_state_type>::value);
+  REQUIRE_FALSE(concepts::self_transition<missing_next_state_type>);
+}
+
+TEST_CASE("valid self transition is a self-transition", "[unit][transition]") {
+  REQUIRE(is_self_transition<self_transition>::value);
+  REQUIRE(concepts::self_transition<self_transition>);
 }
