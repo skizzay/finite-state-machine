@@ -7,6 +7,7 @@ target_sources(fsm INTERFACE
    skizzay/fsm/event.h
    skizzay/fsm/event_engine.h
    skizzay/fsm/event_handler.h
+   skizzay/fsm/event_provider.h
    skizzay/fsm/events_list.h
    skizzay/fsm/optional_reference.h
    skizzay/fsm/overload.h
