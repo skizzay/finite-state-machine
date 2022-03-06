@@ -17,7 +17,7 @@ concept states_list = is_states_list<T>::value;
 
 template <typename State, typename StatesList>
 concept state_in =
-    state<State> && states_list<State> && contains_v<StatesList, State>;
+    state<State> && states_list<StatesList> && contains_v<StatesList, State>;
 } // namespace concepts
 
 template <concepts::state... States> struct states_list {};

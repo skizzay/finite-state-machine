@@ -15,6 +15,7 @@ target_sources(fsm INTERFACE
    skizzay/fsm/state_accessible.h
    skizzay/fsm/state_provider.h
    skizzay/fsm/state_queryable.h
+   skizzay/fsm/state_transition_context.h
    skizzay/fsm/states_list.h
    skizzay/fsm/transition.h
    skizzay/fsm/type_list.h
