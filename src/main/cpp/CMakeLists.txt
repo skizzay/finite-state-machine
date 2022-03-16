@@ -5,6 +5,7 @@ target_include_directories(fsm INTERFACE
 )
 target_sources(fsm INTERFACE
    skizzay/fsm/event.h
+   skizzay/fsm/event_context.h
    skizzay/fsm/event_engine.h
    skizzay/fsm/event_handler.h
    skizzay/fsm/event_provider.h
