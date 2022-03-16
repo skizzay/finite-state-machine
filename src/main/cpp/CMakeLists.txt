@@ -4,6 +4,7 @@ target_include_directories(fsm INTERFACE
   $<INSTALL_INTERFACE:include>
 )
 target_sources(fsm INTERFACE
+   skizzay/fsm/basic_state_container.h
    skizzay/fsm/event.h
    skizzay/fsm/event_context.h
    skizzay/fsm/event_engine.h
@@ -12,8 +13,10 @@ target_sources(fsm INTERFACE
    skizzay/fsm/events_list.h
    skizzay/fsm/optional_reference.h
    skizzay/fsm/overload.h
+   skizzay/fsm/single_state_container.h
    skizzay/fsm/state.h
    skizzay/fsm/state_accessible.h
+   skizzay/fsm/state_container.h
    skizzay/fsm/state_provider.h
    skizzay/fsm/state_queryable.h
    skizzay/fsm/state_transition_context.h

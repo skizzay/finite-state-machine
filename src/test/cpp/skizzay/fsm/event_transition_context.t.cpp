@@ -56,9 +56,6 @@ struct not_move_constructible {
   get_transitions(test_state_type const &) noexcept {
     return {t};
   }
-
-  template <std::same_as<test_objects::test_state<0, 1>>>
-  constexpr void schedule_entry() noexcept {}
 };
 
 struct not_event_context {
@@ -90,9 +87,6 @@ struct not_event_context {
   get_transitions(test_state_type const &) noexcept {
     return {t};
   }
-
-  template <std::same_as<test_objects::test_state<0, 1>>>
-  constexpr void schedule_entry() noexcept {}
 };
 
 struct missing_transition_table_type {
@@ -126,9 +120,6 @@ struct missing_transition_table_type {
   get_transitions(test_state_type const &) noexcept {
     return {t};
   }
-
-  template <std::same_as<test_objects::test_state<0, 1>>>
-  constexpr void schedule_entry() noexcept {}
 };
 
 struct missing_get_transitions_member_function {
@@ -158,44 +149,6 @@ struct missing_get_transitions_member_function {
 
   constexpr void
   post_event(concepts::event_in<events_list_type> auto const &) noexcept {}
-
-  template <std::same_as<test_objects::test_state<0, 1>>>
-  constexpr void schedule_entry() noexcept {}
-};
-
-struct missing_schedule_entry_member_function {
-  using event_type = test_event_type;
-  using states_list_type = states_list<test_state_type>;
-  using events_list_type = events_list<test_event_type>;
-  using transition_table_type = std::tuple<
-      simple_transition<test_state_type, test_state_type, test_event_type>>;
-
-  event_type e;
-  test_objects::test_state<0, 1> s;
-  [[no_unique_address]] simple_transition<test_state_type, test_state_type,
-                                          test_event_type>
-      t;
-
-  constexpr event_type const &event() const noexcept { return e; }
-
-  template <std::same_as<test_objects::test_state<0, 1>> State>
-  constexpr State &state() noexcept {
-    return s;
-  }
-
-  template <std::same_as<test_objects::test_state<0, 1>> State>
-  constexpr State const &state() const noexcept {
-    return s;
-  }
-
-  constexpr void
-  post_event(concepts::event_in<events_list_type> auto const &) noexcept {}
-
-  constexpr std::tuple<
-      simple_transition<test_state_type, test_state_type, test_event_type> &>
-  get_transitions(test_state_type const &) noexcept {
-    return {t};
-  }
 };
 
 struct valid_event_transition_context {
@@ -231,9 +184,6 @@ struct valid_event_transition_context {
   get_transitions(test_state_type const &) noexcept {
     return {t};
   }
-
-  template <std::same_as<test_objects::test_state<0, 1>>>
-  constexpr void schedule_entry() noexcept {}
 };
 // } // namespace
 
@@ -279,18 +229,6 @@ TEST_CASE("missing get transtions member function is not an event context",
                 missing_get_transitions_member_function>::value);
   REQUIRE_FALSE(concepts::event_transition_context<
                 missing_get_transitions_member_function>);
-}
-
-TEST_CASE("missing schedule entry member function is not an event context",
-          "[unit][event_context]") {
-  REQUIRE(std::move_constructible<missing_schedule_entry_member_function>);
-  REQUIRE(concepts::event_context<missing_schedule_entry_member_function>);
-  REQUIRE(concepts::transition_table<detected_t<
-              transition_table_t, missing_schedule_entry_member_function>>);
-  REQUIRE_FALSE(is_event_transition_context<
-                missing_schedule_entry_member_function>::value);
-  REQUIRE_FALSE(concepts::event_transition_context<
-                missing_schedule_entry_member_function>);
 }
 
 TEST_CASE("valid event context is an event context", "[unit][event_context]") {

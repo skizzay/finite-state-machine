@@ -13,6 +13,7 @@ target_sources(fsm_unit_tests PRIVATE
   skizzay/fsm/event_provider.t.cpp
   skizzay/fsm/state.t.cpp
   skizzay/fsm/state_accessible.t.cpp
+  skizzay/fsm/state_container.t.cpp
   skizzay/fsm/state_provider.t.cpp
   skizzay/fsm/state_queryable.t.cpp
   skizzay/fsm/transition.t.cpp
