@@ -28,10 +28,18 @@ concept event_context_for =
     event_context<T> && event<Event> && std::convertible_to<
         is_event_context_details_::add_cref_t<typename T::event_type>,
         is_event_context_details_::add_cref_t<Event>>;
+
+template <typename T>
+concept initial_entry_event_context = event_context<T> &&
+    std::same_as<typename T::event_type, initial_entry_event_t>;
 } // namespace concepts
 
 template <typename T, typename Event>
 struct is_event_context_for
     : std::bool_constant<concepts::event_context_for<T, Event>> {};
+
+template <typename T>
+struct is_initial_entry_event_context
+    : std::bool_constant<concepts::initial_entry_event_context<T>> {};
 
 } // namespace skizzay::fsm

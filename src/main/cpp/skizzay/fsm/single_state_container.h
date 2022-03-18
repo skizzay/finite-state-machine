@@ -1,10 +1,10 @@
 #pragma once
 
-#include <skizzay/fsm/basic_state_container.h>
-#include <skizzay/fsm/concepts.h>
-#include <skizzay/fsm/enter.h>
-#include <skizzay/fsm/exit.h>
-#include <skizzay/fsm/traits.h>
+#include "skizzay/fsm/basic_state_container.h"
+#include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/states_list.h"
+
 #include <type_traits>
 
 namespace skizzay::fsm {
@@ -25,33 +25,31 @@ requires(!concepts::state_container<State>) struct single_state
       : basic_state_container<single_state<State>>{}, state_{std::forward<Args>(
                                                           args)...} {}
 
-  constexpr State &get() noexcept { return state_; }
-
-  constexpr State const &get() const noexcept { return state_; }
-
 private:
   friend basic_state_container<single_state<State>>;
   State state_;
 
-  template <concepts::machine_for<State> Machine, concepts::event Event>
-  requires(
-      concepts::event_in<Event, events_list_t<Machine>> ||
-      std::same_as<
-          Event,
-          initial_entry_event_t>) constexpr void do_entry(Machine &machine,
-                                                          Event const &event) {
-    enter(state_, machine, event);
-  }
+  // constexpr void
+  // do_entry(concepts::state_transition_context &state_transition_context)
+  // noexcept(
+  //     noexcept(entry(get_state(), state_transition_context))) {
+  //   entry(get_state(), state_transition_context);
+  // }
 
-  template <concepts::machine_for<State> Machine, concepts::event Event>
-  requires(
-      concepts::event_in<Event, events_list_t<Machine>> ||
-      std::same_as<Event,
-                   final_exit_event_t>) constexpr void do_exit(Machine &machine,
-                                                               Event const
-                                                                   &event) {
-    exit(state_, machine, event);
-  }
+  // template <concepts::machine_for<State> Machine, concepts::event Event>
+  // requires(
+  //     concepts::event_in<Event, events_list_t<Machine>> ||
+  //     std::same_as<
+  //         Event,
+  //         initial_entry_event_t>) constexpr void do_entry(Machine &machine,
+  //                                                         Event const &event)
+  //                                                         {
+  //   enter(state_, machine, event);
+  // }
+
+  constexpr State &get_state() noexcept { return state_; }
+
+  constexpr State const &get_state() const noexcept { return state_; }
 };
 
 template <concepts::state State>

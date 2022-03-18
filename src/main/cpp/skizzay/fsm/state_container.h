@@ -54,12 +54,12 @@ template <typename T>
 requires concepts::state_accessible<T> &&
     requires(T &t, T const &tc,
              is_state_container_details_::fake_event_transition_context &fetc) {
-  // t.on_entry();
-  { t.on_event(fetc) } -> concepts::boolean;
   { tc.is_active() }
   noexcept->concepts::boolean;
   { tc.is_inactive() }
   noexcept->concepts::boolean;
+  // t.on_entry();
+  { t.on_event(fetc) } -> concepts::boolean;
 }
 struct is_state_container<T> : std::true_type {};
 

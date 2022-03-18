@@ -26,4 +26,37 @@ struct is_transition_in
     : std::bool_constant<concepts::transition_in<Transition, TransitionTable>> {
 };
 
+namespace transition_table_details_ {
+template <concepts::event Event, concepts::state State>
+struct has_current_state {
+  template <concepts::transition Transition>
+  using test = std::conjunction<
+      std::is_same<State, typename Transition::current_state_type>,
+      std::is_convertible<Event const &,
+                          typename Transition::event_type const &>>;
+};
+} // namespace transition_table_details_
+
+template <concepts::transition_table TransitionTable, concepts::state State,
+          concepts::event Event>
+constexpr concepts::transition_table auto
+get_transition_table_for_current_state(TransitionTable &transition_table,
+                                       State const &, Event const &) noexcept {
+  using candidate_transitions_list_type = as_container_t<
+      filter_t<TransitionTable, transition_table_details_::has_current_state<
+                                    Event, State>::template test>,
+      simple_type_list>;
+
+  if constexpr (empty_v<candidate_transitions_list_type>) {
+    return std::tuple{};
+  } else {
+    return []<concepts::transition... Transitions>(
+        TransitionTable & transition_table,
+        simple_type_list<Transitions...>) noexcept {
+      return std::tie(std::get<Transitions>(transition_table)...);
+    }
+    (transition_table, candidate_transitions_list_type{});
+  }
+}
+
 } // namespace skizzay::fsm
