@@ -2,6 +2,7 @@
 
 #include "skizzay/fsm/accepts.h"
 #include "skizzay/fsm/enter.h"
+#include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/exit.h"
 #include "skizzay/fsm/optional_reference.h"
@@ -63,16 +64,15 @@ template <typename Derived> struct container {
 
   constexpr bool is_inactive() const noexcept { return !active_; }
 
-  constexpr void
-  on_entry(concepts::initial_entry_event_context auto &event_context) {
-    activate(event_context);
+  constexpr void on_entry(concepts::initial_entry_context auto &entry_context) {
+    activate(entry_context);
   }
 
-  // constexpr void on_entry(concepts::entry_context auto entry_context) {
-  //   if (entry_context.template is_scheduled<state_t<Derived>>()) {
-  //     activate(entry_context);
-  //   }
-  // }
+  constexpr void on_entry(concepts::entry_context auto &entry_context) {
+    if (entry_context.template is_scheduled<state_t<Derived>>()) {
+      activate(entry_context);
+    }
+  }
 
   constexpr bool on_event(concepts::final_exit_event_transition_context auto
                               &final_exit_event_context) {

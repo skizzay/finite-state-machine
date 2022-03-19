@@ -109,22 +109,27 @@ template <typename T>
 using states_list_t = typename states_list_t_details_::impl<T>::type;
 
 namespace state_t_details_ {
+
+template <typename T>
+concept has_state_type = concepts::state<typename T::state_type>;
+
 template <typename> struct impl;
 
 template <typename T>
-requires concepts::state<typename T::state_type>
+requires has_state_type<T>
 struct impl<T> {
   using type = typename T::state_type;
 };
 
 template <concepts::states_list T>
-requires(1 == length_v<T>) struct impl<T> {
+requires(!has_state_type<T>) && (1 == length_v<T>)struct impl<T> {
   using type = front_t<T>;
 };
 
 template <typename T>
-requires concepts::states_list<states_list_t<T>>
-struct impl<T> : impl<states_list_t<T>> {
+requires(!has_state_type<T>) &&
+    (!concepts::states_list<T>)&&concepts::states_list<
+        states_list_t<T>> struct impl<T> : impl<states_list_t<T>> {
 };
 } // namespace state_t_details_
 

@@ -39,6 +39,8 @@ SCENARIO("single state container event handling",
                                    test_objects::test_event<0>>,
                  simple_transition<target_test_state<0>, target_test_state<1>,
                                    test_objects::test_event<1>>,
+                 simple_transition<target_test_state<1>, target_test_state<0>,
+                                   test_objects::test_event<1>>,
                  simple_transition<target_test_state<0>, target_test_state<0>,
                                    test_objects::test_event<2>>,
                  simple_transition<target_test_state<0>, target_test_state<1>,
@@ -57,10 +59,142 @@ SCENARIO("single state container event handling",
     }
 
     WHEN("initially entered") {
-      test_objects::fake_event_transition_context<initial_entry_event_t,
-                                                  transition_table_type>
-          initial_entry_event_context;
-      target.on_entry(initial_entry_event_context);
+      test_objects::fake_entry_context<initial_entry_event_t,
+                                       states_list_t<transition_table_type>,
+                                       events_list_t<transition_table_type>>
+          initial_entry_context;
+      target.on_entry(initial_entry_context);
+
+      THEN("it has entered initially") {
+        REQUIRE(1 == target.state<test_state_type>().initial_entry_count);
+      }
+
+      THEN("it is active") {
+        REQUIRE(target.is_active());
+        REQUIRE_FALSE(target.is_inactive());
+      }
+
+      AND_WHEN("finally exited") {
+        test_objects::fake_event_transition_context<final_exit_event_t,
+                                                    transition_table_type>
+            event_transition_context;
+        bool const actual = target.on_event(event_transition_context);
+
+        THEN("the event was handled") {
+          REQUIRE(actual);
+
+          AND_THEN("it is inactive") {
+            REQUIRE_FALSE(target.is_active());
+            REQUIRE(target.is_inactive());
+          }
+        }
+      }
+
+      AND_WHEN("a reentering event is raised") {
+        test_objects::fake_event_transition_context<test_objects::test_event<0>,
+                                                    transition_table_type>
+            event_transition_context;
+        event_transition_context.e.pass_acceptance = true;
+        test_objects::fake_entry_context<test_objects::test_event<0>,
+                                         states_list_t<transition_table_type>,
+                                         events_list_t<transition_table_type>>
+            entry_context;
+        entry_context.e = event_transition_context.e;
+
+        bool const actual = target.on_event(event_transition_context);
+
+        THEN("the event was handled") {
+          REQUIRE(actual);
+          AND_THEN("it is still active") {
+            REQUIRE(target.is_active());
+            REQUIRE_FALSE(target.is_inactive());
+          }
+
+          AND_WHEN("entry is attempted") {
+            target.on_entry(entry_context);
+            THEN("it was reentered") {
+              REQUIRE(1 ==
+                      target.state<test_state_type>().event_reentry_count[0]);
+            }
+          }
+        }
+      }
+
+      AND_WHEN("an exiting event is raised") {
+        test_objects::fake_event_transition_context<test_objects::test_event<1>,
+                                                    transition_table_type>
+            event_transition_context;
+        event_transition_context.e.pass_acceptance = true;
+
+        bool const actual = target.on_event(event_transition_context);
+
+        THEN("the event was handled") {
+          REQUIRE(actual);
+          AND_THEN("it is inactive") {
+            REQUIRE_FALSE(target.is_active());
+            REQUIRE(target.is_inactive());
+          }
+
+          AND_THEN("the state exited") {
+            REQUIRE(1 == target.state<test_state_type>().event_exit_count[1]);
+          }
+        }
+      }
+
+      AND_WHEN("a non-triggering event is raised") {
+        test_objects::fake_event_transition_context<test_objects::test_event<1>,
+                                                    transition_table_type>
+            event_transition_context;
+        event_transition_context.e.pass_acceptance = false;
+
+        bool const actual = target.on_event(event_transition_context);
+
+        THEN("the event was not handled") {
+          REQUIRE_FALSE(actual);
+          AND_THEN("it is still active") {
+            REQUIRE(target.is_active());
+            REQUIRE_FALSE(target.is_inactive());
+          }
+        }
+      }
+
+      AND_WHEN(
+          "an ambiguously triggering event (reenter then exit) is raised") {
+        test_objects::fake_event_transition_context<test_objects::test_event<2>,
+                                                    transition_table_type>
+            event_transition_context;
+        event_transition_context.e.pass_acceptance = true;
+
+        REQUIRE_THROWS_AS(target.on_event(event_transition_context),
+                          state_transition_ambiguity);
+
+        THEN("state transitition ambiguity has been thrown") { REQUIRE(true); }
+      }
+
+      AND_WHEN(
+          "an ambiguously triggering event (exit then reenter) is raised") {
+        test_objects::fake_event_transition_context<test_objects::test_event<3>,
+                                                    transition_table_type>
+            event_transition_context;
+        event_transition_context.e.pass_acceptance = true;
+
+        REQUIRE_THROWS_AS(target.on_event(event_transition_context),
+                          state_transition_ambiguity);
+
+        THEN("state transitition ambiguity has been thrown") { REQUIRE(true); }
+      }
+    }
+
+    WHEN("entered based upon transition") {
+      test_objects::fake_entry_context<test_objects::test_event<1>,
+                                       states_list_t<transition_table_type>,
+                                       events_list_t<transition_table_type>>
+          entry_context;
+      target.on_entry(entry_context);
+
+      THEN("it has entered from the transition") {
+        REQUIRE(1 == target.state<test_state_type>().event_entry_count[1]);
+      }
 
       THEN("it is active") {
         REQUIRE(target.is_active());

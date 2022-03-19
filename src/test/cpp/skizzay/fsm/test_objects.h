@@ -122,4 +122,45 @@ struct fake_event_transition_context {
     return get_transition_table_for_current_state(transition_table, state, e);
   }
 };
+
+template <skizzay::fsm::concepts::event Event,
+          skizzay::fsm::concepts::states_list StatesList,
+          skizzay::fsm::concepts::events_list EventsList>
+struct fake_entry_context {
+  using event_type = Event;
+  using states_list_type = StatesList;
+  using events_list_type = EventsList;
+
+  event_type e;
+  skizzay::fsm::as_container_t<states_list_type, std::tuple> states;
+  std::array<std::size_t, skizzay::fsm::length_v<events_list_type>>
+      posted_event_counts;
+  std::size_t posted_epsilon_events = 0;
+
+  constexpr event_type const &event() const noexcept { return e; }
+
+  template <skizzay::fsm::concepts::state_in<states_list_type> State>
+  constexpr State &state() noexcept {
+    return std::get<State>(states);
+  }
+
+  template <skizzay::fsm::concepts::state_in<states_list_type> State>
+  constexpr State const &state() const noexcept {
+    return std::get<State>(states);
+  }
+
+  template <std::size_t I>
+  constexpr void post_event(test_event<I> const &) noexcept {
+    posted_event_counts[I] += 1;
+  }
+
+  constexpr void post_event(skizzay::fsm::epsilon_event_t const &) noexcept {
+    posted_epsilon_events += 1;
+  }
+
+  template <skizzay::fsm::concepts::state_in<states_list_type>>
+  constexpr bool is_scheduled() const noexcept {
+    return true;
+  }
+};
 } // namespace test_objects

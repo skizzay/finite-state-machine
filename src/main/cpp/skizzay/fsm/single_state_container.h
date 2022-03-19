@@ -29,24 +29,6 @@ private:
   friend basic_state_container<single_state<State>>;
   State state_;
 
-  // constexpr void
-  // do_entry(concepts::state_transition_context &state_transition_context)
-  // noexcept(
-  //     noexcept(entry(get_state(), state_transition_context))) {
-  //   entry(get_state(), state_transition_context);
-  // }
-
-  // template <concepts::machine_for<State> Machine, concepts::event Event>
-  // requires(
-  //     concepts::event_in<Event, events_list_t<Machine>> ||
-  //     std::same_as<
-  //         Event,
-  //         initial_entry_event_t>) constexpr void do_entry(Machine &machine,
-  //                                                         Event const &event)
-  //                                                         {
-  //   enter(state_, machine, event);
-  // }
-
   constexpr State &get_state() noexcept { return state_; }
 
   constexpr State const &get_state() const noexcept { return state_; }
