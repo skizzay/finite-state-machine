@@ -16,44 +16,14 @@ struct accepts_fn final {
     return true;
   }
 
-  template <concepts::state State, concepts::event_context EventContext>
-  requires requires(State const &s, EventContext const &e) {
-    { s.accepts(e) }
+  template <concepts::transition Transition, concepts::state State, concepts::event_context EventContext>
+  requires requires(Transition const &t, State const &s, EventContext const &e) {
+    { t.accepts(s, e) }
     noexcept->concepts::boolean;
   }
-  constexpr bool operator()(State const &state,
+  constexpr bool operator()(Transition const &transition, State const &state,
                             EventContext const &event_context) const noexcept {
-    return state.accepts(event_context);
-  }
-
-  template <concepts::state State, concepts::event_context EventContext>
-  requires requires(State const &s, EventContext const &e) {
-    { accepts(s, e) }
-    noexcept->concepts::boolean;
-  }
-  constexpr bool operator()(State const &state,
-                            EventContext const &event_context) const noexcept {
-    return accepts(state, event_context);
-  }
-
-  template <concepts::state State, concepts::event_context EventContext>
-  requires requires(State const &s, EventContext const &e) {
-    { s.accepts(e.event()) }
-    noexcept->concepts::boolean;
-  }
-  constexpr bool operator()(State const &state,
-                            EventContext const &event_context) const noexcept {
-    return state.accepts(event_context.event());
-  }
-
-  template <concepts::state State, concepts::event_context EventContext>
-  requires requires(State const &s, EventContext const &e) {
-    { accepts(s, e.event()) }
-    noexcept->concepts::boolean;
-  }
-  constexpr bool operator()(State const &state,
-                            EventContext const &event_context) const noexcept {
-    return accepts(state, event_context.event());
+    return transition.accepts(state, event_context);
   }
 };
 } // namespace accepts_details_

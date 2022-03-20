@@ -139,12 +139,19 @@ private:
     return event_transition_context.get_transitions(derived().get_state());
   }
 
+  constexpr bool accepts_transition(
+      concepts::transition auto const &transition,
+      concepts::event_context auto const &event_context) const noexcept {
+    return accepts(transition, derived().get_state(), event_context);
+  }
+
   constexpr acceptance_type attempt_transitions(
       concepts::event_transition_context auto &event_transition_context) {
     acceptance_type acceptance = acceptance_type::unaccepted;
     auto attempt_to_transition =
         [&]<concepts::transition Transition>(Transition &transition) {
-          if (accepts(derived().get_state(), event_transition_context)) {
+          if (accepts_transition(std::as_const(transition),
+                                 std::as_const(event_transition_context))) {
             if constexpr (concepts::self_transition<Transition>) {
               switch (acceptance) {
               case acceptance_type::exited:
