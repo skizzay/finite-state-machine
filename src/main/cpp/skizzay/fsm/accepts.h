@@ -11,29 +11,47 @@ template <typename... Ts> void accepts(Ts const &...) = delete;
 
 struct accepts_fn final {
   constexpr bool
-  operator()(concepts::state auto const &, concepts::transition auto const &,
+  operator()(concepts::state auto const &,
              concepts::event_context auto const &) const noexcept {
     return true;
   }
 
-  template <concepts::state State, concepts::transition Transition,
-            concepts::event_context EventContext>
+  template <concepts::state State, concepts::event_context EventContext>
+  requires requires(State const &s, EventContext const &e) {
+    { s.accepts(e) }
+    noexcept->concepts::boolean;
+  }
+  constexpr bool operator()(State const &state,
+                            EventContext const &event_context) const noexcept {
+    return state.accepts(event_context);
+  }
+
+  template <concepts::state State, concepts::event_context EventContext>
+  requires requires(State const &s, EventContext const &e) {
+    { accepts(s, e) }
+    noexcept->concepts::boolean;
+  }
+  constexpr bool operator()(State const &state,
+                            EventContext const &event_context) const noexcept {
+    return accepts(state, event_context);
+  }
+
+  template <concepts::state State, concepts::event_context EventContext>
   requires requires(State const &s, EventContext const &e) {
     { s.accepts(e.event()) }
     noexcept->concepts::boolean;
   }
-  constexpr bool operator()(State const &state, Transition const &,
+  constexpr bool operator()(State const &state,
                             EventContext const &event_context) const noexcept {
     return state.accepts(event_context.event());
   }
 
-  template <concepts::state State, concepts::transition Transition,
-            concepts::event_context EventContext>
+  template <concepts::state State, concepts::event_context EventContext>
   requires requires(State const &s, EventContext const &e) {
     { accepts(s, e.event()) }
     noexcept->concepts::boolean;
   }
-  constexpr bool operator()(State const &state, Transition const &,
+  constexpr bool operator()(State const &state,
                             EventContext const &event_context) const noexcept {
     return accepts(state, event_context.event());
   }
