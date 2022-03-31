@@ -37,12 +37,12 @@ concept derived_container_state = concepts::state<State> &&
 template <typename Derived> struct container {
   friend Derived;
 
-  template <derived_container_state<Derived>>
+  template <derived_container_state<Derived> = state_t<Derived>>
   constexpr bool is() const noexcept {
     return is_active();
   }
 
-  template <derived_container_state<Derived> State>
+  template <derived_container_state<Derived> State = state_t<Derived>>
   constexpr optional_reference<std::remove_cvref_t<State> const>
   current_state() const noexcept {
     using result_type = optional_reference<std::remove_cvref_t<State> const>;
@@ -50,12 +50,12 @@ template <typename Derived> struct container {
                        : result_type{std::nullopt};
   }
 
-  template <derived_container_state<Derived> State>
+  template <derived_container_state<Derived> State = state_t<Derived>>
   constexpr std::remove_cvref_t<State> &state() noexcept {
     return derived().get_state();
   }
 
-  template <derived_container_state<Derived> State>
+  template <derived_container_state<Derived> State = state_t<Derived>>
   constexpr std::remove_cvref_t<State> const &state() const noexcept {
     return derived().get_state();
   }
@@ -122,27 +122,27 @@ private:
   }
 
   constexpr void do_exit(concepts::event_context auto &event_context) {
-    exit(derived().get_state(), event_context);
+    exit(state(), event_context);
   }
 
   constexpr void do_entry(concepts::event_context auto &event_context) {
-    enter(derived().get_state(), event_context);
+    enter(state(), event_context);
   }
 
   constexpr void do_reentry(concepts::event_context auto &event_context) {
-    reenter(derived().get_state(), event_context);
+    reenter(state(), event_context);
   }
 
   constexpr concepts::transition_table auto get_transitions(
       concepts::event_transition_context auto &event_transition_context)
       const noexcept {
-    return event_transition_context.get_transitions(derived().get_state());
+    return event_transition_context.get_transitions(state());
   }
 
   constexpr bool accepts_transition(
       concepts::transition auto const &transition,
       concepts::event_context auto const &event_context) const noexcept {
-    return accepts(transition, derived().get_state(), event_context);
+    return accepts(transition, state(), event_context);
   }
 
   constexpr acceptance_type attempt_transitions(
