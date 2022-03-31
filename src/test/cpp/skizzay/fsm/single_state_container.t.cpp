@@ -58,12 +58,20 @@ SCENARIO("single state container event handling",
       REQUIRE_FALSE(target.is_active());
     }
 
+    THEN("it returns an empty current state") {
+      REQUIRE_FALSE(target.current_state().has_value());
+    }
+
     WHEN("initially entered") {
       test_objects::fake_entry_context<initial_entry_event_t,
                                        states_list_t<transition_table_type>,
                                        events_list_t<transition_table_type>>
           initial_entry_context;
       target.on_entry(initial_entry_context);
+
+      THEN("it returns a populated current state") {
+        REQUIRE(target.current_state().has_value());
+      }
 
       THEN("it has entered initially") {
         REQUIRE(1 == target.state<test_state_type>().initial_entry_count);
@@ -191,6 +199,10 @@ SCENARIO("single state container event handling",
                                        events_list_t<transition_table_type>>
           entry_context;
       target.on_entry(entry_context);
+
+      THEN("it returns a populated current state") {
+        REQUIRE(target.current_state().has_value());
+      }
 
       THEN("it has entered from the transition") {
         REQUIRE(1 == target.state<test_state_type>().event_entry_count[1]);

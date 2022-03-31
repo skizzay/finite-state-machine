@@ -71,7 +71,7 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
   }
 
   template <std::size_t I>
-  bool accepts(test_event<I> const &event) const noexcept {
+  bool is_accepted(test_event<I> const &event) const noexcept {
     return event.pass_acceptance;
   }
 };
@@ -119,7 +119,8 @@ struct fake_event_transition_context {
   constexpr skizzay::fsm::concepts::transition_table auto
   get_transitions(skizzay::fsm::concepts::state_in<states_list_type> auto const
                       &state) noexcept {
-    return get_transition_table_for_current_state(transition_table, state, e);
+    return get_transition_table_for_current_state(transition_table, event(),
+                                                  state);
   }
 };
 
