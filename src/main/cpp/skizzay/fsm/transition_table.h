@@ -27,36 +27,60 @@ struct is_transition_in
 };
 
 namespace transition_table_details_ {
+template <concepts::event Event> struct has_event {
+  template <concepts::transition Transition>
+  using test = std::is_convertible<Event const &,
+                                   typename Transition::event_type const &>;
+};
+
 template <concepts::event Event, concepts::state State>
 struct has_current_state {
   template <concepts::transition Transition>
   using test = std::conjunction<
       std::is_same<State, typename Transition::current_state_type>,
-      std::is_convertible<Event const &,
-                          typename Transition::event_type const &>>;
+      typename has_event<Event>::template test<Transition>>;
 };
+
+template <typename State, typename TransitionTable, typename Event>
+concept current_state_in =
+    concepts::state<State> && concepts::transition_table<TransitionTable> &&
+    concepts::event_in<Event, TransitionTable> &&
+    any_v<TransitionTable, has_current_state<Event, State>::template test>;
 } // namespace transition_table_details_
 
-template <concepts::transition_table TransitionTable, concepts::state State,
-          concepts::event Event>
+template <concepts::event Event, concepts::transition_table TransitionTable>
+struct is_event_in<Event, TransitionTable>
+    : any<TransitionTable,
+          transition_table_details_::has_event<Event>::template test> {};
+
+template <
+    concepts::transition_table TransitionTable,
+    concepts::event_in<TransitionTable> Event,
+    transition_table_details_::current_state_in<TransitionTable, Event> State>
 constexpr concepts::transition_table auto
 get_transition_table_for_current_state(TransitionTable &transition_table,
-                                       State const &, Event const &) noexcept {
+                                       Event const &, State const &) noexcept {
   using candidate_transitions_list_type = as_container_t<
       filter_t<TransitionTable, transition_table_details_::has_current_state<
                                     Event, State>::template test>,
       simple_type_list>;
 
-  if constexpr (empty_v<candidate_transitions_list_type>) {
-    return std::tuple{};
-  } else {
-    return []<concepts::transition... Transitions>(
-        TransitionTable & transition_table,
-        simple_type_list<Transitions...>) noexcept {
-      return std::tie(std::get<Transitions>(transition_table)...);
-    }
-    (transition_table, candidate_transitions_list_type{});
+  return []<concepts::transition... Transitions>(
+      TransitionTable & transition_table,
+      simple_type_list<Transitions...>) noexcept {
+    return std::tie(std::get<Transitions>(transition_table)...);
   }
+  (transition_table, candidate_transitions_list_type{});
+}
+
+template <concepts::transition_table TransitionTable, concepts::event Event,
+          concepts::state State>
+requires(!transition_table_details_::current_state_in<State, TransitionTable,
+                                                      Event>) constexpr std::
+    tuple<> get_transition_table_for_current_state(TransitionTable &,
+                                                   Event const &,
+                                                   State const &) noexcept {
+  return {};
 }
 
 } // namespace skizzay::fsm
