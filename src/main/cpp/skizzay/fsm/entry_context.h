@@ -15,7 +15,7 @@ template <typename T> struct template_member_function {
 };
 
 template <typename T> template <typename State>
-requires concepts::state_in<State, typename T::states_list_type> &&
+requires concepts::state_in<State, typename T::next_states_list_type> &&
     requires(T const &tc) {
   { tc.template is_scheduled<State>() }
   noexcept->concepts::boolean;
@@ -27,10 +27,17 @@ template <typename> struct is_entry_context : std::false_type {};
 
 template <typename T>
 requires concepts::event_context<T> &&
-    all_v<typename T::states_list_type,
+    all_v<typename T::next_states_list_type,
           is_entry_context_details_::template_member_function<
               T>::template is_scheduled> struct is_entry_context<T>
     : std::true_type {
+};
+
+template <typename> struct is_initial_entry_context : std::false_type {};
+
+template <typename T>
+requires is_entry_context<T>::value struct is_initial_entry_context<T>
+    : std::is_same<initial_entry_event_t, typename T::event_type> {
 };
 
 namespace concepts {
@@ -38,12 +45,7 @@ template <typename T>
 concept entry_context = is_entry_context<T>::value;
 
 template <typename T>
-concept initial_entry_context = entry_context<T> &&
-    std::same_as<initial_entry_event_t, typename T::event_type>;
+concept initial_entry_context = is_initial_entry_context<T>::value;
 } // namespace concepts
-
-template <typename T>
-struct is_initial_entry_context
-    : std::bool_constant<concepts::initial_entry_context<T>> {};
 
 } // namespace skizzay::fsm

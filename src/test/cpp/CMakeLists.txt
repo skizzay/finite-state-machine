@@ -11,6 +11,7 @@ target_sources(fsm_unit_tests PRIVATE
   skizzay/fsm/event_engine.t.cpp
   skizzay/fsm/event_handler.t.cpp
   skizzay/fsm/event_provider.t.cpp
+  skizzay/fsm/orthogonal_state_container.t.cpp
   skizzay/fsm/single_state_container.t.cpp
   skizzay/fsm/state.t.cpp
   skizzay/fsm/state_accessible.t.cpp

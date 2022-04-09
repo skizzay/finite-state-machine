@@ -1,22 +1,77 @@
 #pragma once
 
+#include "skizzay/fsm/event_context.h"
+#include "skizzay/fsm/transition.h"
+#include "skizzay/fsm/types.h"
+
 #include <concepts>
-#include <skizzay/fsm/concepts.h>
 
 namespace skizzay::fsm {
 
 namespace trigger_details_ {
+template <typename... Ts> void on_triggered(Ts const &...) = delete;
+
+template <typename Transition, typename EventContext>
+concept trigger_requires_only_event = requires(Transition &transition,
+                                               EventContext &event_context) {
+  transition.on_triggered(std::as_const(event_context).event());
+}
+|| requires(Transition &transition, EventContext &event_context) {
+  on_triggered(transition, std::as_const(event_context).event());
+};
+
 struct trigger_fn final {
-  template <concepts::actionable_transition Transition,
-            std::convertible_to<event_t<Transition>> Event>
-  constexpr void operator()(Transition &transition, Event const &event) const
-      noexcept(noexcept(transition.on_triggered(event))) {
-    transition.on_triggered(event);
+  template <concepts::transition Transition,
+            concepts::event_context_for<Transition> EventContext>
+  constexpr void operator()(Transition &, EventContext &) const noexcept {}
+
+  template <concepts::transition Transition,
+            concepts::event_context_for<Transition> EventContext>
+  requires requires(Transition &transition, EventContext &event_context) {
+    transition.on_triggered(std::as_const(event_context).event());
+  }
+  constexpr void operator()(Transition &transition,
+                            EventContext &event_context) const
+      noexcept(noexcept(
+          transition.on_triggered(std::as_const(event_context).event()))) {
+    transition.on_triggered(std::as_const(event_context).event());
   }
 
   template <concepts::transition Transition,
-            std::convertible_to<event_t<Transition>> Event>
-  constexpr void operator()(Transition &, Event const &) const noexcept {}
+            concepts::event_context_for<Transition> EventContext>
+  requires requires(Transition &transition, EventContext &event_context) {
+    on_triggered(transition, std::as_const(event_context).event());
+  }
+  constexpr void operator()(Transition &transition,
+                            EventContext &event_context) const
+      noexcept(noexcept(on_triggered(transition,
+                                     std::as_const(event_context).event()))) {
+    on_triggered(transition, std::as_const(event_context).event());
+  }
+
+  template <concepts::transition Transition,
+            concepts::event_context_for<Transition> EventContext>
+  requires(!trigger_requires_only_event<Transition, EventContext>) &&
+      requires(Transition &transition, EventContext &event_context) {
+    transition.on_triggered(event_context);
+  }
+  constexpr void operator()(Transition &transition,
+                            EventContext &event_context) const
+      noexcept(noexcept(transition.on_triggered(event_context))) {
+    transition.on_triggered(event_context);
+  }
+
+  template <concepts::transition Transition,
+            concepts::event_context_for<Transition> EventContext>
+  requires(!trigger_requires_only_event<Transition, EventContext>) &&
+      requires(Transition &transition, EventContext &event_context) {
+    on_triggered(transition, event_context);
+  }
+  constexpr void operator()(Transition &transition,
+                            EventContext &event_context) const
+      noexcept(noexcept(on_triggered(transition, event_context))) {
+    on_triggered(transition, event_context);
+  }
 };
 } // namespace trigger_details_
 

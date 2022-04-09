@@ -1,5 +1,6 @@
 #pragma once
 
+#include "skizzay/fsm/const_ref.h"
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/event_context.h"
 #include "skizzay/fsm/state.h"
@@ -12,6 +13,9 @@
 
 namespace skizzay::fsm {
 template <typename> struct is_event_transition_context : std::false_type {};
+
+template <typename>
+struct is_final_exit_event_transition_context : std::false_type {};
 
 namespace is_event_transition_context_details_ {
 template <typename> struct template_member_function {
@@ -59,25 +63,19 @@ requires std::move_constructible<T> && concepts::event_context<T> &&
     : std::true_type {
 };
 
+template <typename T>
+requires is_event_transition_context<
+    T>::value struct is_final_exit_event_transition_context<T>
+    : std::is_same<typename T::event_type, final_exit_event_t> {
+};
+
 namespace concepts {
 template <typename T>
 concept event_transition_context = is_event_transition_context<T>::value;
 
-template <typename T, typename Event>
-concept event_transition_context_for =
-    event_transition_context<T> && event_context_for<T, Event>;
-
 template <typename T>
 concept final_exit_event_transition_context =
-    event_transition_context_for<T, final_exit_event_t>;
+    is_final_exit_event_transition_context<T>::value;
 } // namespace concepts
-
-template <typename T, typename Event>
-struct is_event_transition_context_for
-    : std::bool_constant<concepts::event_transition_context_for<T, Event>> {};
-
-template <typename T>
-struct is_final_exit_event_transition_context
-    : std::bool_constant<concepts::final_exit_event_transition_context<T>> {};
 
 } // namespace skizzay::fsm

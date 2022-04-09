@@ -1,7 +1,12 @@
 #pragma once
 
+#include "skizzay/fsm/const_ref.h"
+#include "skizzay/fsm/event_context.h"
+#include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/events_list.h"
 #include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/state_containers_list.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/transition_table.h"
 #include "skizzay/fsm/type_list.h"
@@ -61,7 +66,18 @@ template <typename Default, template <typename...> typename Template,
           typename... Ts>
 using detected_or_t = typename detected_or<Default, Template, Ts...>::type;
 
-template <typename T> using event_t = typename T::event_type;
+namespace event_t_details_ {
+template <typename T> struct impl {
+  using type = std::enable_if_t<concepts::event<T>, T>;
+};
+
+template <typename T>
+requires concepts::event<typename T::event_type>
+struct impl<T> : impl<typename T::event_type> {
+};
+} // namespace event_t_details_
+
+template <typename T> using event_t = typename event_t_details_::impl<T>::type;
 
 template <typename T> using current_state_t = typename T::current_state_type;
 
@@ -172,15 +188,93 @@ template <typename T, template <typename> typename ExtractState>
 requires concepts::transition_table<transition_table_t<T>>
 struct impl<T, ExtractState> : impl<transition_table_t<T>, ExtractState> {
 };
+
+template <typename T>
+struct current_states_list_impl : impl<T, current_state_t> {};
+
+template <typename T>
+requires concepts::states_list<typename T::current_states_list_type>
+struct current_states_list_impl<T> {
+  using type = typename T::current_states_list_type;
+};
+
+template <typename T> struct next_states_list_impl : impl<T, next_state_t> {};
+
+template <typename T>
+requires concepts::states_list<typename T::next_states_list_type>
+struct next_states_list_impl<T> {
+  using type = typename T::next_states_list_type;
+};
 } // namespace extract_states_list_type_details_
 
 template <typename T>
 using current_states_list_t =
-    typename extract_states_list_type_details_::impl<T, current_state_t>::type;
+    typename extract_states_list_type_details_::current_states_list_impl<
+        T>::type;
 
 template <typename T>
 using next_states_list_t =
-    typename extract_states_list_type_details_::impl<T, next_state_t>::type;
+    typename extract_states_list_type_details_::next_states_list_impl<T>::type;
+
+namespace state_containers_for_details_ {
+template <typename, typename> struct impl {};
+
+template <concepts::states_list StatesList> struct has_state_in {
+  template <concepts::state_container StateContainer>
+  using test = contains_any<states_list_t<StateContainer>, StatesList>;
+};
+
+template <concepts::state_containers_list StateContainersList,
+          concepts::states_list StatesList>
+struct impl<StateContainersList, StatesList> {
+  using type =
+      filter_t<StateContainersList, has_state_in<StatesList>::template test>;
+};
+} // namespace state_containers_for_details_
+
+template <typename StateContainersList, typename StatesList>
+using state_containers_for_t =
+    typename state_containers_for_details_::impl<StateContainersList,
+                                                 StatesList>::type;
+
+namespace is_event_context_for_details_ {
+template <template <typename> typename Predicate, typename Candidate,
+          typename U>
+struct impl : std::false_type {};
+
+template <template <typename> typename Predicate, typename Candidate,
+          typename U>
+requires Predicate<Candidate>::value struct impl<Predicate, Candidate, U>
+    : std::is_convertible<add_cref_t<event_t<Candidate>>,
+                          add_cref_t<event_t<U>>> {
+};
+} // namespace is_event_context_for_details_
+
+template <typename T, typename... Us>
+struct is_event_context_for : std::conjunction<is_event_context_for<T, Us>...> {
+};
+
+template <typename EventContext, typename U>
+struct is_event_context_for<EventContext, U>
+    : is_event_context_for_details_::impl<is_event_context, EventContext, U> {};
+
+template <typename T, typename... Us>
+struct is_event_transition_context_for
+    : std::conjunction<is_event_transition_context_for<T, Us>...> {};
+
+template <typename EventTransitionContext, typename U>
+struct is_event_transition_context_for<EventTransitionContext, U>
+    : is_event_context_for_details_::impl<is_event_transition_context,
+                                          EventTransitionContext, U> {};
+
+namespace concepts {
+template <typename T, typename U>
+concept event_context_for = is_event_context_for<T, U>::value;
+
+template <typename T, typename U>
+concept event_transition_context_for =
+    is_event_transition_context_for<T, U>::value;
+} // namespace concepts
 
 template <typename T> using machine_t = typename T::machine_type;
 } // namespace skizzay::fsm

@@ -68,7 +68,9 @@ template <typename Derived> struct container {
     activate(entry_context);
   }
 
-  constexpr void on_entry(concepts::entry_context auto &entry_context) {
+  template <concepts::entry_context EntryContext>
+  requires(!concepts::initial_entry_context<
+           EntryContext>) constexpr void on_entry(EntryContext &entry_context) {
     if (entry_context.template is_scheduled<state_t<Derived>>()) {
       activate(entry_context);
     }
@@ -80,8 +82,11 @@ template <typename Derived> struct container {
     return true;
   }
 
-  constexpr bool
-  on_event(concepts::event_transition_context auto &event_transition_context) {
+  template <concepts::event_transition_context EventTransitionContext>
+  requires(
+      !concepts::final_exit_event_transition_context<
+          EventTransitionContext>) constexpr bool on_event(EventTransitionContext
+                                                               &event_transition_context) {
     switch (attempt_transitions(event_transition_context)) {
     case acceptance_type::reentered:
       return true;

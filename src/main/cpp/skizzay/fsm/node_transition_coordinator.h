@@ -20,6 +20,7 @@ struct impl {
     scheduled_ = true;
     if constexpr (contains_v<states_list_t<StateContainer>,
                              next_state_t<Transition>>) {
+                               // TODO: trigger the transition
       this->template schedule_entry<next_state_t<Transition>>();
 
     } else {

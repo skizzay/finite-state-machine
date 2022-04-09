@@ -28,9 +28,9 @@ struct parent_state_container
       : basic_state_container<parent_state_container<ParentState>>{},
         state_{std::move_if_noexcept(state)} {}
 
-  constexpr ParentState &get() noexcept { return state_; }
+  constexpr ParentState &get_state() noexcept { return state_; }
 
-  constexpr ParentState const &get() const noexcept { return state_; }
+  constexpr ParentState const &get_state() const noexcept { return state_; }
 
   template <concepts::machine_for<ParentState> Machine, concepts::event Event>
   requires(

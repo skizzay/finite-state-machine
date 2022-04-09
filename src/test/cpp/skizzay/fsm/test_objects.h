@@ -14,6 +14,17 @@
 namespace test_objects {
 template <std::size_t> struct test_event { bool pass_acceptance = true; };
 
+namespace test_events_list_details_ {
+template <typename> struct impl {};
+template <std::size_t... Is> struct impl<std::index_sequence<Is...>> {
+  using type = skizzay::fsm::events_list<test_event<Is>...>;
+};
+} // namespace test_events_list_details_
+
+template <std::size_t N>
+using test_events_list =
+    typename test_events_list_details_::impl<std::make_index_sequence<N>>::type;
+
 template <std::size_t Id, std::size_t NumEvents> struct test_state {
   std::size_t initial_entry_count = 0;
   std::size_t final_exit_count = 0;
@@ -76,13 +87,30 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
   }
 };
 
+namespace test_states_list_details_ {
+template <std::size_t, typename> struct impl {};
+
+template <std::size_t NumEvents, std::size_t... Ids>
+struct impl<NumEvents, std::index_sequence<Ids...>> {
+  using type = skizzay::fsm::states_list<test_state<Ids, NumEvents>...>;
+};
+} // namespace test_states_list_details_
+
+template <std::size_t NumEvents, std::size_t NumStates>
+using test_states_list = typename test_states_list_details_::impl<
+    NumEvents, std::make_index_sequence<NumStates>>::type;
+
 template <skizzay::fsm::concepts::event Event,
-          skizzay::fsm::concepts::transition_table TransitionTable>
+          skizzay::fsm::concepts::transition_table TransitionTable,
+          skizzay::fsm::concepts::states_list StatesList =
+              skizzay::fsm::states_list_t<TransitionTable>,
+          skizzay::fsm::concepts::events_list EventsList =
+              skizzay::fsm::events_list_t<TransitionTable>>
 struct fake_event_transition_context {
   using event_type = Event;
   using transition_table_type = TransitionTable;
-  using states_list_type = skizzay::fsm::states_list_t<transition_table_type>;
-  using events_list_type = skizzay::fsm::events_list_t<transition_table_type>;
+  using states_list_type = StatesList;
+  using events_list_type = EventsList;
 
   event_type e;
   skizzay::fsm::as_container_t<states_list_type, std::tuple> states;
@@ -122,15 +150,22 @@ struct fake_event_transition_context {
     return get_transition_table_for_current_state(transition_table, event(),
                                                   state);
   }
+
+  template <skizzay::fsm::concepts::state_in<
+      skizzay::fsm::next_states_list_t<transition_table_type>>
+                State>
+  constexpr void schedule_entry() noexcept {}
 };
 
 template <skizzay::fsm::concepts::event Event,
           skizzay::fsm::concepts::states_list StatesList,
-          skizzay::fsm::concepts::events_list EventsList>
+          skizzay::fsm::concepts::events_list EventsList,
+          skizzay::fsm::concepts::states_list NextStatesList = StatesList>
 struct fake_entry_context {
   using event_type = Event;
   using states_list_type = StatesList;
   using events_list_type = EventsList;
+  using next_states_list_type = NextStatesList;
 
   event_type e;
   skizzay::fsm::as_container_t<states_list_type, std::tuple> states;
@@ -159,7 +194,7 @@ struct fake_entry_context {
     posted_epsilon_events += 1;
   }
 
-  template <skizzay::fsm::concepts::state_in<states_list_type>>
+  template <skizzay::fsm::concepts::state_in<next_states_list_type>>
   constexpr bool is_scheduled() const noexcept {
     return true;
   }
