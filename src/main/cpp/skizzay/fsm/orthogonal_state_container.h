@@ -1,12 +1,12 @@
 #pragma once
 
 #include "skizzay/fsm/entry_context.h"
+#include "skizzay/fsm/event_context_node.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/final_event_transition_context.h"
 #include "skizzay/fsm/initial_entry_context.h"
 #include "skizzay/fsm/state.h"
 #include "skizzay/fsm/state_container.h"
-#include "skizzay/fsm/statechart/event_context_node.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/type_list.h"
 #include "skizzay/fsm/types.h"
@@ -76,6 +76,8 @@ template <concepts::state_container... StateContainers> class container {
   struct event_transition_context
       : event_context_node<container<StateContainers...>,
                            ParentEventTransitionContext> {
+    using event_context_node<container<StateContainers...>,
+                             ParentEventTransitionContext>::events_list_type;
     template <typename State>
     static constexpr std::size_t container_index =
         container_index_calc<typename container<StateContainers...>::tuple_type,
@@ -109,7 +111,7 @@ template <concepts::state_container... StateContainers> class container {
   };
 
 public:
-  using states_list_type = concat_t<states_list_t<StateContainers>...>;
+  using states_list_type = flat_map_t<map_t<tuple_type, states_list_t>>;
 
   constexpr container() noexcept(
       std::is_nothrow_default_constructible_v<tuple_type>)

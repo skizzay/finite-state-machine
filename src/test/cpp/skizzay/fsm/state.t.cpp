@@ -12,11 +12,9 @@ struct indestructible final {
 
 struct copy_constructible final {
   copy_constructible(copy_constructible const &) = default;
-  copy_constructible(copy_constructible &&) = delete;
 };
 
 struct move_constructible final {
-  move_constructible(move_constructible const &) = delete;
   move_constructible(move_constructible &&) = default;
 };
 
@@ -28,37 +26,30 @@ struct default_constructible final {
 } // namespace
 
 TEST_CASE("void * is not a state", "[unit][state]") {
-  REQUIRE_FALSE(is_state<void *>::value);
   REQUIRE_FALSE(concepts::state<void *>);
 }
 
 TEST_CASE("void is not a state", "[unit][state]") {
-  REQUIRE_FALSE(is_state<void>::value);
   REQUIRE_FALSE(concepts::state<void>);
 }
 
 TEST_CASE("indestructible is not a state", "[unit][state]") {
-  REQUIRE_FALSE(is_state<indestructible>::value);
   REQUIRE_FALSE(concepts::state<indestructible>);
 }
 
 TEST_CASE("nonmovable/noncopyable constructible is not a state",
           "[unit][state]") {
-  REQUIRE_FALSE(is_state<default_constructible>::value);
   REQUIRE_FALSE(concepts::state<default_constructible>);
 }
 
 TEST_CASE("moveable constructible is a state", "[unit][state]") {
-  REQUIRE(is_state<move_constructible>::value);
-  REQUIRE(concepts::state<move_constructible>);
+  REQUIRE_FALSE(concepts::state<move_constructible>);
 }
 
 TEST_CASE("copyable constructible is a state", "[unit][state]") {
-  REQUIRE(is_state<copy_constructible>::value);
   REQUIRE(concepts::state<copy_constructible>);
 }
 
 TEST_CASE("test state is a state", "[unit][state]") {
-  REQUIRE(is_state<test_objects::test_state<0, 1>>::value);
   REQUIRE(concepts::state<test_objects::test_state<0, 1>>);
 }

@@ -40,3 +40,6 @@ build
 # Editor swap files
 .*.sw?
 *~
+
+# Temporary storage for files that need to be used, but not yet committed
+tmp

@@ -1,0 +1,61 @@
+digraph G {
+   splines="FALSE";
+
+   /* Entities */
+   event [label="event"]
+   state [label="state"]
+   transition [label="transition"]
+   transition_table [label="transition_table"]
+   events_list [label="events_list"]
+   states_list [label="states_list"]
+   event_provider [label="event_provider"]
+   state_provider [label="state_provider"]
+   state_queryable [label="state_queryable"]
+   state_accessible [label="state_accessible"]
+   event_engine [label="event_engine"]
+   event_handler [label="event_handler"]
+   event_transition_context [label="event_transition_context"]
+   final_exit_event_transition_context [label="final_exit_event_transition_context"]
+   entry_context [label="entry_context"]
+   initial_entry_context [label="initial_entry_context"]
+   state_container [label="state_container"]
+   
+   /* Relationships */
+   transition -> event
+   transition -> state
+   transition_table -> transition
+   transition_table -> events_list
+   events_list -> event
+   states_list -> state
+   event_engine -> event
+   event_engine -> events_list
+   event_provider -> event
+   state_provider -> state
+   state_provider -> states_list
+   state_queryable -> state
+   state_queryable -> states_list
+   state_accessible -> state_provider
+   state_accessible -> state_queryable
+   event_context -> event_engine
+   event_context -> event_provider
+   event_handler -> event
+   event_handler -> events_list
+   event_transition_context -> event_context
+   event_transition_context -> transition
+   event_transition_context -> transition_table
+   event_transition_context -> states_list
+   event_transition_context -> state
+   final_exit_event_transition_context -> event_transition_context
+   entry_context -> event_context
+   entry_context -> states_list
+   entry_context -> state
+   initial_entry_context -> entry_context
+   state_container -> state
+   state_container -> states_list
+   state_container -> state_accessible
+   state_container -> event_transition_context
+   state_container -> entry_context
+
+   /* Ranks */
+   { rank=same; event; state; };
+}

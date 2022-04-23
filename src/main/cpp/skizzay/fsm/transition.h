@@ -7,25 +7,23 @@
 #include <type_traits>
 
 namespace skizzay::fsm {
-template <typename> struct is_transition : std::false_type {};
-
-template <typename T>
-requires concepts::event<typename T::event_type> &&
-    concepts::state<typename T::current_state_type> &&
-    concepts::state<typename T::next_state_type>
-struct is_transition<T> : std::true_type {
-};
-
 namespace concepts {
 template <typename T>
-concept transition = is_transition<T>::value;
+concept transition = requires {
+  typename event_t<T>;
+  typename current_state_t<T>;
+  typename next_state_t<T>;
+};
 
 template <typename T>
-concept self_transition = transition<T> &&
-    std::same_as<typename T::current_state_type, typename T::next_state_type>;
+concept self_transition =
+    transition<T> && std::same_as<current_state_t<T>, next_state_t<T>>;
 } // namespace concepts
 
 template <typename T>
-struct is_self_transition : std::bool_constant<concepts::self_transition<T>> {};
+using is_transition = std::bool_constant<concepts::transition<T>>;
+
+template <typename T>
+using is_self_transition = std::bool_constant<concepts::self_transition<T>>;
 
 } // namespace skizzay::fsm

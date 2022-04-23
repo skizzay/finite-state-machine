@@ -9,8 +9,6 @@
 #include <type_traits>
 
 namespace skizzay::fsm {
-template <typename> struct is_state_queryable : std::false_type {};
-
 namespace state_queryable_details_ {
 template <typename T> struct template_member_function {
   template <typename> struct current_state : std::false_type {};
@@ -33,21 +31,19 @@ requires concepts::state<State> && requires(T const &tc) {
 struct template_member_function<T>::is<State> : std::true_type {};
 } // namespace state_queryable_details_
 
-template <typename T>
-// TODO: Check for visitation
-requires concepts::states_list<typename T::states_list_type> &&
-    (0 < length_v<typename T::states_list_type>)&&all_v<
-        typename T::states_list_type,
-        state_queryable_details_::template_member_function<
-            T>::template current_state>
-        &&all_v<typename T::states_list_type,
-                state_queryable_details_::template_member_function<
-                    T>::template is> struct is_state_queryable<T>
-    : std::true_type {};
-
 namespace concepts {
 template <typename T>
-concept state_queryable = is_state_queryable<T>::value;
+concept state_queryable = requires {
+  typename states_list_t<T>;
 }
+&&(!empty_v<states_list_t<T>>)&&all_v<
+    states_list_t<T>, state_queryable_details_::template_member_function<
+                          T>::template current_state>
+    &&all_v<states_list_t<T>,
+            state_queryable_details_::template_member_function<T>::template is>;
+} // namespace concepts
+
+template <typename T>
+using is_state_queryable = std::bool_constant<concepts::state_queryable<T>>;
 
 } // namespace skizzay::fsm

@@ -6,7 +6,6 @@
 
 using namespace skizzay::fsm;
 
-namespace {
 struct not_state_queryable {
   test_objects::test_state<0, 1> s;
 
@@ -61,28 +60,23 @@ struct valid_state_accessible : valid_state_queryable {
     return s;
   }
 };
-} // namespace
 
 TEST_CASE("non-state queryable is not state accessible",
           "[unit][state_accessible]") {
-  REQUIRE_FALSE(is_state_accessible<not_state_queryable>::value);
   REQUIRE_FALSE(concepts::state_accessible<not_state_queryable>);
 }
 
 TEST_CASE("missing const state is not state accessible",
           "[unit][state_accessible]") {
-  REQUIRE_FALSE(is_state_accessible<missing_const_get>::value);
   REQUIRE_FALSE(concepts::state_accessible<missing_const_get>);
 }
 
 TEST_CASE("missing mutable state is not state accessible",
           "[unit][state_accessible]") {
-  REQUIRE_FALSE(is_state_accessible<missing_mutable_get>::value);
   REQUIRE_FALSE(concepts::state_accessible<missing_mutable_get>);
 }
 
 TEST_CASE("valid state accessible is state accessible",
           "[unit][state_accessible]") {
-  REQUIRE(is_state_accessible<valid_state_accessible>::value);
   REQUIRE(concepts::state_accessible<valid_state_accessible>);
 }

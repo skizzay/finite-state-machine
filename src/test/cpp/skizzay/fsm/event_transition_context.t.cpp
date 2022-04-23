@@ -2,18 +2,17 @@
 
 #include "test_objects.h"
 #include <catch2/catch.hpp>
+#include <skizzay/fsm/detected.h>
 #include <skizzay/fsm/event_context.h>
 #include <skizzay/fsm/simple_transition.h>
 #include <skizzay/fsm/states_list.h>
 #include <skizzay/fsm/transition_table.h>
 #include <skizzay/fsm/type_list.h>
-#include <skizzay/fsm/types.h>
 
 #include <tuple>
 
 using namespace skizzay::fsm;
 
-// namespace {
 using test_event_type = test_objects::test_event<0>;
 using test_state_type = test_objects::test_state<0, 1>;
 
@@ -185,7 +184,6 @@ struct valid_event_transition_context {
     return {t};
   }
 };
-// } // namespace
 
 TEST_CASE("not move constructible is not an event transition context",
           "[unit][event_context]") {
@@ -193,7 +191,6 @@ TEST_CASE("not move constructible is not an event transition context",
   REQUIRE(concepts::event_context<not_move_constructible>);
   REQUIRE(concepts::transition_table<
           detected_t<transition_table_t, not_move_constructible>>);
-  REQUIRE_FALSE(is_event_transition_context<not_move_constructible>::value);
   REQUIRE_FALSE(concepts::event_transition_context<not_move_constructible>);
 }
 
@@ -203,7 +200,6 @@ TEST_CASE("not an event context is not an event transition context",
   REQUIRE_FALSE(concepts::event_context<not_event_context>);
   REQUIRE(concepts::transition_table<
           detected_t<transition_table_t, not_event_context>>);
-  REQUIRE_FALSE(is_event_transition_context<not_event_context>::value);
   REQUIRE_FALSE(concepts::event_transition_context<not_event_context>);
 }
 
@@ -214,8 +210,6 @@ TEST_CASE("missing transition table is not an event transition context",
   REQUIRE_FALSE(concepts::transition_table<
                 detected_t<transition_table_t, missing_transition_table_type>>);
   REQUIRE_FALSE(
-      is_event_transition_context<missing_transition_table_type>::value);
-  REQUIRE_FALSE(
       concepts::event_transition_context<missing_transition_table_type>);
 }
 
@@ -225,8 +219,6 @@ TEST_CASE("missing get transtions member function is not an event context",
   REQUIRE(concepts::event_context<missing_get_transitions_member_function>);
   REQUIRE(concepts::transition_table<detected_t<
               transition_table_t, missing_get_transitions_member_function>>);
-  REQUIRE_FALSE(is_event_transition_context<
-                missing_get_transitions_member_function>::value);
   REQUIRE_FALSE(concepts::event_transition_context<
                 missing_get_transitions_member_function>);
 }
@@ -236,6 +228,5 @@ TEST_CASE("valid event context is an event context", "[unit][event_context]") {
   REQUIRE(concepts::event_context<valid_event_transition_context>);
   REQUIRE(concepts::transition_table<
           detected_t<transition_table_t, valid_event_transition_context>>);
-  REQUIRE(is_event_transition_context<valid_event_transition_context>::value);
   REQUIRE(concepts::event_transition_context<valid_event_transition_context>);
 }

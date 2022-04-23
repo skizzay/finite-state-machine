@@ -5,7 +5,6 @@
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/transition_table.h"
 #include "skizzay/fsm/type_list.h"
-#include "skizzay/fsm/types.h"
 
 #include <array>
 #include <cstddef>

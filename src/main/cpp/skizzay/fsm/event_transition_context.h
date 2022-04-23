@@ -12,11 +12,6 @@
 #include <type_traits>
 
 namespace skizzay::fsm {
-template <typename> struct is_event_transition_context : std::false_type {};
-
-template <typename>
-struct is_final_exit_event_transition_context : std::false_type {};
-
 namespace is_event_transition_context_details_ {
 template <typename> struct template_member_function {
   template <typename> struct get_transitions : std::false_type {};
@@ -40,42 +35,42 @@ using extract_state_list_t = as_container_t<
     unique_t<map_t<map_t<TransitionTable, std::remove_cvref_t>, ExtractState>>,
     states_list>;
 
-template <typename T>
-using extract_current_state_t = typename T::current_state_type;
-
-template <typename T> using extract_next_state_t = typename T::next_state_type;
-
 template <typename TransitionTable>
 using extract_current_states_list_t =
-    extract_state_list_t<TransitionTable, extract_current_state_t>;
+    extract_state_list_t<TransitionTable, current_state_t>;
 template <typename TransitionTable>
 using extract_next_states_list_t =
-    extract_state_list_t<TransitionTable, extract_next_state_t>;
+    extract_state_list_t<TransitionTable, next_state_t>;
 } // namespace is_event_transition_context_details_
-
-template <typename T>
-requires std::move_constructible<T> && concepts::event_context<T> &&
-    concepts::transition_table<typename T::transition_table_type> &&
-    all_v<is_event_transition_context_details_::extract_current_states_list_t<
-              typename T::transition_table_type>,
-          is_event_transition_context_details_::template_member_function<T>::
-              template get_transitions> struct is_event_transition_context<T>
-    : std::true_type {
-};
-
-template <typename T>
-requires is_event_transition_context<
-    T>::value struct is_final_exit_event_transition_context<T>
-    : std::is_same<typename T::event_type, final_exit_event_t> {
-};
 
 namespace concepts {
 template <typename T>
-concept event_transition_context = is_event_transition_context<T>::value;
+concept event_transition_context =
+    std::move_constructible<T> && event_context<T> && requires {
+  typename transition_table_t<T>;
+} && all_v<current_states_list_t<T>,
+           is_event_transition_context_details_::template_member_function<
+               T>::template get_transitions>;
 
 template <typename T>
 concept final_exit_event_transition_context =
-    is_final_exit_event_transition_context<T>::value;
+    event_transition_context<T> && std::same_as<event_t<T>, final_exit_event_t>;
+
+template <typename T, typename Event>
+concept event_transition_context_for =
+    event_transition_context<T> && event<Event> && event_provider_for<T, Event>;
 } // namespace concepts
+
+template <typename T>
+using is_event_transition_context =
+    std::bool_constant<concepts::event_transition_context<T>>;
+
+template <typename T>
+using is_final_exit_event_transition_context =
+    std::bool_constant<concepts::final_exit_event_transition_context<T>>;
+
+template <typename T, typename Event>
+using is_event_transition_context_for =
+    std::bool_constant<concepts::event_transition_context_for<T, Event>>;
 
 } // namespace skizzay::fsm

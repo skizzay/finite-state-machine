@@ -6,13 +6,12 @@
 #include <type_traits>
 
 namespace skizzay::fsm {
-template <typename T>
-struct is_state_accessible
-    : std::conjunction<is_state_queryable<T>, is_state_provider<T>> {};
-
 namespace concepts {
 template <typename T>
-concept state_accessible = is_state_accessible<T>::value;
+concept state_accessible = state_queryable<T> && state_provider<T>;
 } // namespace concepts
+
+template <typename T>
+using is_state_accessible = std::bool_constant<concepts::state_accessible<T>>;
 
 } // namespace skizzay::fsm

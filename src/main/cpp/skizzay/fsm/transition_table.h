@@ -1,6 +1,7 @@
 #pragma once
 
-#include "skizzay/fsm/traits.h"
+#include "skizzay/fsm/events_list.h"
+#include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/transition.h"
 #include "skizzay/fsm/type_list.h"
 
@@ -22,8 +23,76 @@ concept transition_in = transition<std::remove_cvref_t<Transition>> &&
 } // namespace concepts
 
 template <typename Transition, typename TransitionTable>
-struct is_transition_in
-    : std::bool_constant<concepts::transition_in<Transition, TransitionTable>> {
+using is_transition_in =
+    std::bool_constant<concepts::transition_in<Transition, TransitionTable>>;
+
+namespace transition_table_t_details_ {
+template <typename> struct impl;
+
+template <typename T>
+requires concepts::transition_table<typename T::transition_table_type>
+struct impl<T> {
+  using type = typename T::transition_table_type;
+};
+} // namespace transition_table_t_details_
+
+template <typename T>
+using transition_table_t = typename transition_table_t_details_::impl<T>::type;
+
+namespace transition_at_details_ {
+template <std::size_t, typename> struct impl {};
+
+template <std::size_t I, concepts::transition_table TransitionTable>
+struct impl<I, TransitionTable> {
+  using type = element_at_t<I, TransitionTable>;
+};
+
+template <std::size_t I, typename T>
+requires concepts::transition_table<transition_table_t<T>>
+struct impl<I, T> {
+  using type = typename impl<I, transition_table_t<T>>::type;
+};
+} // namespace transition_at_details_
+
+template <std::size_t I, typename T>
+using transition_at_t = typename transition_at_details_::impl<I, T>::type;
+
+namespace extract_transition_t_details_ {
+template <concepts::transition_table TransitionTable,
+          template <typename> typename ExtractType,
+          template <typename...> typename List>
+using impl = as_container_t<
+    unique_t<map_t<map_t<TransitionTable, std::remove_cvref_t>, ExtractType>>,
+    List>;
+}
+
+template <concepts::transition_table TransitionTable>
+struct basic_current_states_list_t<TransitionTable> {
+  using type =
+      extract_transition_t_details_::impl<TransitionTable, current_state_t,
+                                          states_list>;
+};
+
+template <typename T>
+requires requires { typename transition_table_t<T>; }
+struct basic_current_states_list_t<T>
+    : basic_current_states_list_t<transition_table_t<T>> {};
+
+template <concepts::transition_table TransitionTable>
+struct basic_next_states_list_t<TransitionTable> {
+  using type = extract_transition_t_details_::impl<TransitionTable,
+                                                   next_state_t, states_list>;
+};
+
+template <typename T>
+requires requires { typename transition_table_t<T>; }
+struct basic_next_states_list_t<T>
+    : basic_next_states_list_t<transition_table_t<T>> {};
+
+template <concepts::transition_table TransitionTable>
+struct basic_states_list_t<TransitionTable> {
+  using type = unique_t<concat_t<current_states_list_t<TransitionTable>,
+                                 next_states_list_t<TransitionTable>>>;
 };
 
 namespace transition_table_details_ {
@@ -52,6 +121,10 @@ template <concepts::event Event, concepts::transition_table TransitionTable>
 struct is_event_in<Event, TransitionTable>
     : any<TransitionTable,
           transition_table_details_::has_event<Event>::template test> {};
+
+template <concepts::transition_table T> struct basic_events_list_t<T> {
+  using type = extract_transition_t_details_::impl<T, event_t, events_list>;
+};
 
 template <
     concepts::transition_table TransitionTable,

@@ -4,6 +4,7 @@
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/event_context.h"
 #include "skizzay/fsm/states_list.h"
+#include "skizzay/fsm/transition_table.h"
 
 #include <type_traits>
 
@@ -15,7 +16,7 @@ template <typename T> struct template_member_function {
 };
 
 template <typename T> template <typename State>
-requires concepts::state_in<State, typename T::next_states_list_type> &&
+requires concepts::state_in<State, next_states_list_t<T>> &&
     requires(T const &tc) {
   { tc.template is_scheduled<State>() }
   noexcept->concepts::boolean;
@@ -23,29 +24,24 @@ requires concepts::state_in<State, typename T::next_states_list_type> &&
 struct template_member_function<T>::is_scheduled<State> : std::true_type {};
 } // namespace is_entry_context_details_
 
-template <typename> struct is_entry_context : std::false_type {};
-
-template <typename T>
-requires concepts::event_context<T> &&
-    all_v<typename T::next_states_list_type,
-          is_entry_context_details_::template_member_function<
-              T>::template is_scheduled> struct is_entry_context<T>
-    : std::true_type {
-};
-
-template <typename> struct is_initial_entry_context : std::false_type {};
-
-template <typename T>
-requires is_entry_context<T>::value struct is_initial_entry_context<T>
-    : std::is_same<initial_entry_event_t, typename T::event_type> {
-};
-
 namespace concepts {
 template <typename T>
-concept entry_context = is_entry_context<T>::value;
+concept entry_context = event_context<T> && requires {
+  typename next_states_list_t<T>;
+} && all_v<next_states_list_t<T>,
+           is_entry_context_details_::template_member_function<
+               T>::template is_scheduled>;
 
 template <typename T>
-concept initial_entry_context = is_initial_entry_context<T>::value;
+concept initial_entry_context =
+    entry_context<T> && std::same_as<event_t<T>, initial_entry_event_t>;
 } // namespace concepts
+
+template <typename T>
+using is_entry_context = std::bool_constant<concepts::entry_context<T>>;
+
+template <typename T>
+using is_initial_entry_context =
+    std::bool_constant<concepts::initial_entry_context<T>>;
 
 } // namespace skizzay::fsm

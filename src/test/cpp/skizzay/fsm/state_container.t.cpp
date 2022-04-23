@@ -7,7 +7,6 @@
 
 using namespace skizzay::fsm;
 
-namespace {
 using test_event_type = test_objects::test_event<0>;
 using test_state_type = test_objects::test_state<0, 1>;
 
@@ -165,44 +164,38 @@ struct valid_state_container {
 
   constexpr bool is_inactive() const noexcept { return true; }
 };
-} // namespace
 
 TEST_CASE("not state accessible is not a state container",
           "[unit][state_container]") {
-  REQUIRE(is_event_transition_context<
-          is_state_container_details_::fake_event_transition_context>::value);
-  REQUIRE_FALSE(is_state_container<not_state_accessible>::value);
+  REQUIRE(concepts::event_transition_context<
+          is_state_container_details_::fake_event_transition_context>);
   REQUIRE_FALSE(concepts::state_container<not_state_accessible>);
 }
 
 TEST_CASE("missing on event member function is not a state container",
           "[unit][state_container]") {
-  REQUIRE(is_event_transition_context<
-          is_state_container_details_::fake_event_transition_context>::value);
-  REQUIRE_FALSE(is_state_container<missing_on_event_member_function>::value);
+  REQUIRE(concepts::event_transition_context<
+          is_state_container_details_::fake_event_transition_context>);
   REQUIRE_FALSE(concepts::state_container<missing_on_event_member_function>);
 }
 
 TEST_CASE("missing is active member function is not a state container",
           "[unit][state_container]") {
-  REQUIRE(is_event_transition_context<
-          is_state_container_details_::fake_event_transition_context>::value);
-  REQUIRE_FALSE(is_state_container<missing_is_active_member_function>::value);
+  REQUIRE(concepts::event_transition_context<
+          is_state_container_details_::fake_event_transition_context>);
   REQUIRE_FALSE(concepts::state_container<missing_is_active_member_function>);
 }
 
 TEST_CASE("missing is inactive member function is not a state container",
           "[unit][state_container]") {
-  REQUIRE(is_event_transition_context<
-          is_state_container_details_::fake_event_transition_context>::value);
-  REQUIRE_FALSE(is_state_container<missing_is_inactive_member_function>::value);
+  REQUIRE(concepts::event_transition_context<
+          is_state_container_details_::fake_event_transition_context>);
   REQUIRE_FALSE(concepts::state_container<missing_is_inactive_member_function>);
 }
 
 TEST_CASE("valid state container is a state container",
           "[unit][state_container]") {
-  REQUIRE(is_event_transition_context<
-          is_state_container_details_::fake_event_transition_context>::value);
-  REQUIRE(is_state_container<valid_state_container>::value);
+  REQUIRE(concepts::event_transition_context<
+          is_state_container_details_::fake_event_transition_context>);
   REQUIRE(concepts::state_container<valid_state_container>);
 }

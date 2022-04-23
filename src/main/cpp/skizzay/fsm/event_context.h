@@ -10,24 +10,21 @@
 #include <type_traits>
 
 namespace skizzay::fsm {
-template <typename T>
-struct is_event_context
-    : std::conjunction<is_event_engine<T>, is_event_provider<T>,
-                       is_state_provider<T>> {};
-
-template <typename> struct is_initial_entry_event_context : std::false_type {};
-
-template <typename T>
-requires is_event_context<T>::value struct is_initial_entry_event_context<T>
-    : std::is_same<typename T::event_type, initial_entry_event_t> {
-};
 
 namespace concepts {
 template <typename T>
-concept event_context = is_event_context<T>::value;
+concept event_context =
+    event_engine<T> && event_provider<T> && state_provider<T>;
 
 template <typename T>
-concept initial_entry_event_context = is_initial_entry_event_context<T>::value;
+concept initial_entry_event_context =
+    event_context<T> && std::same_as<event_t<T>, initial_entry_event_t>;
+
+template <typename T, typename Event>
+concept event_context_for = event_context<T> && event_provider_for<T, Event>;
 } // namespace concepts
 
+template <typename T, typename U>
+struct is_event_context_for
+    : std::bool_constant<concepts::event_context_for<T, U>> {};
 } // namespace skizzay::fsm

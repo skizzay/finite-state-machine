@@ -62,6 +62,15 @@ using index_of = typename index_of_details_::impl<T, U, 0>::type;
 template <typename T, typename U>
 inline constexpr std::size_t const index_of_v = index_of<T, U>::value;
 
+template <typename, typename> struct as_index_sequence;
+template <typename T, typename U>
+using as_index_sequence_t = typename as_index_sequence<T, U>::type;
+template <template <typename...> typename Template, typename... Ts,
+          typename SuperSet>
+struct as_index_sequence<Template<Ts...>, SuperSet> {
+  using type = std::index_sequence<index_of_v<Ts, SuperSet>...>;
+};
+
 template <typename, typename> struct contains_all;
 template <typename T, typename U>
 inline constexpr bool const contains_all_v = contains_all<T, U>::value;
@@ -225,6 +234,13 @@ template <template <typename> typename F,
           template <typename...> typename Template, typename... Elements>
 struct map<Template<Elements...>, F> {
   using type = Template<F<Elements>...>;
+};
+
+template <typename> struct flat_map;
+template <typename T> using flat_map_t = typename flat_map<T>::type;
+template <template <typename...> typename Template, typename... Ts>
+struct flat_map<Template<Ts...>> {
+  using type = concat_t<Ts...>;
 };
 
 template <typename, typename, template <typename, typename> typename>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "skizzay/fsm/boolean.h"
+#include "skizzay/fsm/event.h"
 #include "skizzay/fsm/event_context.h"
 #include "skizzay/fsm/state.h"
 #include "skizzay/fsm/transition.h"
@@ -40,7 +41,7 @@ concept transitionable_state_requiring_entire_event_context =
 
 struct accepts_fn final {
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   constexpr bool operator()(Transition const &,
                             current_state_t<Transition> const &,
                             EventContext const &) const noexcept {
@@ -48,7 +49,7 @@ struct accepts_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(Transition const &t, current_state_t<Transition> const &s,
                     EventContext const &e) {
     { t.is_accepted(s, e) }
@@ -61,7 +62,7 @@ struct accepts_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(Transition const &t, current_state_t<Transition> const &s,
                     EventContext const &e) {
     { is_accepted(t, s, e) }
@@ -74,7 +75,7 @@ struct accepts_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(current_state_t<Transition> const &s,
                     EventContext const &e) {
     { s.is_accepted(e) }
@@ -86,7 +87,7 @@ struct accepts_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(current_state_t<Transition> const &s,
                     EventContext const &e) {
     { is_accepted(s, e) }
@@ -98,7 +99,7 @@ struct accepts_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(current_state_t<Transition> const &s,
                     EventContext const &e) {
     { s.is_accepted(e.event()) }
@@ -112,7 +113,7 @@ struct accepts_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(current_state_t<Transition> const &s,
                     EventContext const &e) {
     { is_accepted(s, e.event()) }

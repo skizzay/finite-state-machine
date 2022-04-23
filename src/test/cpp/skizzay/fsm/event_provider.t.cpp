@@ -5,7 +5,6 @@
 
 using namespace skizzay::fsm;
 
-namespace {
 struct missing_event_type {
   test_objects::test_event<0> e;
 
@@ -25,22 +24,18 @@ struct valid_event_provider {
 
   constexpr event_type const &event() const noexcept { return e; }
 };
-} // namespace
 
-TEST_CASE("missing event type is not an event provider",
+TEST_CASE("missing event type is an event provider",
           "[unit][event_provider]") {
-  REQUIRE_FALSE(is_event_provider<missing_event_type>::value);
-  REQUIRE_FALSE(concepts::event_provider<missing_event_type>);
+  REQUIRE(concepts::event_provider<missing_event_type>);
 }
 
 TEST_CASE("missing event member function is not an event provider",
           "[unit][event_provider]") {
-  REQUIRE_FALSE(is_event_provider<missing_event_member_function>::value);
   REQUIRE_FALSE(concepts::event_provider<missing_event_member_function>);
 }
 
 TEST_CASE("valid event provider is an event provider",
           "[unit][event_provider]") {
-  REQUIRE(is_event_provider<valid_event_provider>::value);
   REQUIRE(concepts::event_provider<valid_event_provider>);
 }
