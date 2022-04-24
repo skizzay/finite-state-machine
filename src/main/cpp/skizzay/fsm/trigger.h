@@ -22,11 +22,11 @@ concept trigger_requires_only_event = requires(Transition &transition,
 
 struct trigger_fn final {
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   constexpr void operator()(Transition &, EventContext &) const noexcept {}
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(Transition &transition, EventContext &event_context) {
     transition.on_triggered(std::as_const(event_context).event());
   }
@@ -38,7 +38,7 @@ struct trigger_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires requires(Transition &transition, EventContext &event_context) {
     on_triggered(transition, std::as_const(event_context).event());
   }
@@ -50,7 +50,7 @@ struct trigger_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires(!trigger_requires_only_event<Transition, EventContext>) &&
       requires(Transition &transition, EventContext &event_context) {
     transition.on_triggered(event_context);
@@ -62,7 +62,7 @@ struct trigger_fn final {
   }
 
   template <concepts::transition Transition,
-            concepts::event_context_for<Transition> EventContext>
+            concepts::event_context_for<event_t<Transition>> EventContext>
   requires(!trigger_requires_only_event<Transition, EventContext>) &&
       requires(Transition &transition, EventContext &event_context) {
     on_triggered(transition, event_context);

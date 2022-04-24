@@ -48,6 +48,7 @@ template <typename, typename, std::size_t> struct impl;
 template <template <typename...> typename Template, typename T, typename... Ts,
           typename U, std::size_t I>
 struct impl<Template<T, Ts...>, U, I> {
+  static_assert(0 < sizeof...(Ts), "Type not found");
   using type = typename impl<Template<Ts...>, U, I + 1>::type;
 };
 template <template <typename...> typename Template, typename T, typename... Ts,
@@ -68,7 +69,7 @@ using as_index_sequence_t = typename as_index_sequence<T, U>::type;
 template <template <typename...> typename Template, typename... Ts,
           typename SuperSet>
 struct as_index_sequence<Template<Ts...>, SuperSet> {
-  using type = std::index_sequence<index_of_v<Ts, SuperSet>...>;
+  using type = std::index_sequence<index_of_v<SuperSet, Ts>...>;
 };
 
 template <typename, typename> struct contains_all;
@@ -148,14 +149,12 @@ template <std::size_t N, typename IntegralList> struct value_at;
 template <std::size_t N, typename IntegralList>
 inline constexpr typename IntegralList::value_type value_at_v =
     value_at<N, IntegralList>::value;
-template <std::integral Integral, Integral I, Integral... Is,
-          template <Integral...> typename IntegralTemplate>
-struct value_at<0, IntegralTemplate<I, Is...>>
+template <std::integral Integral, Integral I, Integral... Is>
+struct value_at<0, std::integer_sequence<Integral, I, Is...>>
     : std::integral_constant<Integral, I> {};
-template <std::size_t N, std::integral Integral, Integral I, Integral... Is,
-          template <Integral...> typename IntegralTemplate>
-struct value_at<N, IntegralTemplate<I, Is...>>
-    : value_at<N - 1, IntegralTemplate<Is...>> {};
+template <std::size_t N, std::integral Integral, Integral I, Integral... Is>
+struct value_at<N, std::integer_sequence<Integral, I, Is...>>
+    : value_at<N - 1, std::integer_sequence<Integral, Is...>> {};
 
 template <std::size_t, typename> struct skip;
 template <std::size_t N, typename T> using skip_t = typename skip<N, T>::type;
@@ -338,6 +337,11 @@ template <typename T0, typename T1, typename... Ts>
 struct intersection_of<T0, T1, Ts...> {
   using type = typename intersection_of<typename intersection_of<T0, T1>::type,
                                         Ts...>::type;
+};
+
+template <template <typename...> typename Template, typename... Ts>
+struct curry {
+  template <typename... Us> using type = Template<Ts..., Us...>;
 };
 
 } // namespace skizzay::fsm

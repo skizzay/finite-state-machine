@@ -29,7 +29,7 @@ SCENARIO("orthogonal state container is a state container",
 SCENARIO("orthogonal state container state examination",
          "[unit][state-container][orthogonal-state-container]") {
   GIVEN("a type held by the container") {
-    using type_held_by_container = target_test_state<0>;
+    using type_held_by_container = front_t<states_list_t<target_type>>;
 
     WHEN("seeing if the container holds that type") {
       constexpr bool actual =
