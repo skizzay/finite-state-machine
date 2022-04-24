@@ -45,7 +45,7 @@ struct fake_event_transition_context {
     return {t};
   }
 
-  template <std::same_as<state_type>>
+  template <concepts::state_in<next_states_list_t<transition_table_type>>>
   constexpr void schedule_entry() noexcept {}
 };
 
@@ -76,6 +76,9 @@ struct fake_entry_context {
   constexpr bool is_scheduled() const noexcept {
     return false;
   }
+
+  constexpr void
+  post_event(concepts::event_in<events_list_type> auto const &) noexcept {}
 };
 } // namespace is_state_container_details_
 
@@ -83,12 +86,13 @@ namespace concepts {
 template <typename T>
 concept state_container = state_accessible<T> &&
     requires(T &t, T const &tc,
-             is_state_container_details_::fake_event_transition_context &fetc) {
+             is_state_container_details_::fake_event_transition_context &fetc,
+             is_state_container_details_::fake_entry_context &fec) {
   { tc.is_active() }
   noexcept->concepts::boolean;
   { tc.is_inactive() }
   noexcept->concepts::boolean;
-  // t.on_entry();
+  t.on_entry(fec);
   { t.on_event(fetc) } -> concepts::boolean;
 };
 } // namespace concepts

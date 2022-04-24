@@ -160,6 +160,8 @@ struct valid_state_container {
     return false;
   }
 
+  constexpr void on_entry(concepts::entry_context auto &) {}
+
   constexpr bool is_active() const noexcept { return false; }
 
   constexpr bool is_inactive() const noexcept { return true; }

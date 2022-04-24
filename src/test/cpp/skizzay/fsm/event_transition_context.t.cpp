@@ -183,6 +183,9 @@ struct valid_event_transition_context {
   get_transitions(test_state_type const &) noexcept {
     return {t};
   }
+
+  template <concepts::state_in<next_states_list_t<transition_table_type>>>
+  constexpr void schedule_entry() noexcept {}
 };
 
 TEST_CASE("not move constructible is not an event transition context",

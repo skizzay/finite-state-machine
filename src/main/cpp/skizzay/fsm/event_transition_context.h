@@ -13,34 +13,36 @@
 
 namespace skizzay::fsm {
 namespace is_event_transition_context_details_ {
-template <typename> struct template_member_function {
-  template <typename> struct get_transitions : std::false_type {};
-  template <typename> struct on_transition : std::false_type {};
-};
+template <typename, typename>
+struct has_on_transition_template_member_function : std::false_type {};
 
-template <typename T> template <concepts::state State>
+template <typename T, concepts::transition Transition>
+requires requires(T &t, Transition &transition) { t.on_transition(transition); }
+struct has_on_transition_template_member_function<T, Transition>
+    : std::true_type {};
+
+template <typename, typename>
+struct has_get_transitions_template_member_function : std::false_type {};
+
+template <typename T, concepts::state State>
 requires requires(T &t, State const &sc) {
   { t.get_transitions(sc) }
   noexcept->concepts::transition_table;
 }
-struct template_member_function<T>::get_transitions<State> : std::true_type {};
-
-template <typename T> template <concepts::transition Transition>
-requires requires(T &t, Transition &transition) { t.on_transition(transition); }
-struct template_member_function<T>::on_transition<Transition> : std::true_type {
+struct has_get_transitions_template_member_function<T, State> : std::true_type {
 };
 
-template <typename TransitionTable, template <typename> typename ExtractState>
-using extract_state_list_t = as_container_t<
-    unique_t<map_t<map_t<TransitionTable, std::remove_cvref_t>, ExtractState>>,
-    states_list>;
+template <typename, typename>
+struct has_schedule_entry_template_member_function : std::false_type {};
 
-template <typename TransitionTable>
-using extract_current_states_list_t =
-    extract_state_list_t<TransitionTable, current_state_t>;
-template <typename TransitionTable>
-using extract_next_states_list_t =
-    extract_state_list_t<TransitionTable, next_state_t>;
+template <typename T, concepts::state State>
+requires requires(T &t) {
+  { t.template schedule_entry<State>() }
+  noexcept;
+}
+struct has_schedule_entry_template_member_function<T, State> : std::true_type {
+};
+
 } // namespace is_event_transition_context_details_
 
 namespace concepts {
@@ -49,8 +51,19 @@ concept event_transition_context =
     std::move_constructible<T> && event_context<T> && requires {
   typename transition_table_t<T>;
 } && all_v<current_states_list_t<T>,
-           is_event_transition_context_details_::template_member_function<
-               T>::template get_transitions>;
+           curry<is_event_transition_context_details_::
+                     has_get_transitions_template_member_function,
+                 T>::template type>
+    &&all_v<next_states_list_t<T>,
+            curry<is_event_transition_context_details_::
+                      has_schedule_entry_template_member_function,
+                  T>::template type>
+        &&all_v<filter_t<map_t<transition_table_t<T>, std::remove_cvref_t>,
+                         curry<std::is_convertible,
+                               add_cref_t<event_t<T>>>::template type>,
+                curry<is_event_transition_context_details_::
+                          has_on_transition_template_member_function,
+                      T>::template type>;
 
 template <typename T>
 concept final_exit_event_transition_context =
