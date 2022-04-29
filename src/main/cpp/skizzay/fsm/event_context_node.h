@@ -41,9 +41,8 @@ requires all_v<
       : ParentEventContext{parent_event_context}, state_container_{
                                                       state_container} {}
 
-  template <concepts::transition_in<transition_table_t<ParentEventContext>>
+  template <concepts::self_transition_in<transition_table_t<ParentEventContext>>
                 Transition>
-  requires contains_v<states_list_t<StateContainer>, next_state_t<Transition>>
   constexpr void on_transition(Transition &transition) {
     scheduled_ = true;
     trigger(transition, *this);
@@ -54,7 +53,9 @@ requires all_v<
                 Transition>
   constexpr void on_transition(Transition &transition) {
     scheduled_ = true;
-    exiting_container_ = true;
+    exiting_container_ = will_exit_container() ||
+                         !concepts::state_in<next_state_t<Transition>,
+                                            states_list_t<StateContainer>>;
     ParentEventContext::on_transition(transition);
   }
 

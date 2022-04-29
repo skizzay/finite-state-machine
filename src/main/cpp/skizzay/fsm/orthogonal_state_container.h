@@ -3,8 +3,6 @@
 #include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_context_node.h"
 #include "skizzay/fsm/event_transition_context.h"
-#include "skizzay/fsm/final_event_transition_context.h"
-#include "skizzay/fsm/initial_entry_context.h"
 #include "skizzay/fsm/state.h"
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/states_list.h"
@@ -101,8 +99,7 @@ template <concepts::state_container... StateContainers> class container {
       if (!triggered_containers_.test(
               index_of_v<typename container<StateContainers...>::tuple_type,
                          StateContainer>)) {
-        final_event_transition_context fetc{*this};
-        child_container.on_event(fetc);
+        execute_final_exit(*this, child_container);
       }
     }
 
@@ -170,8 +167,7 @@ public:
             child_container.on_entry(entry_context);
           } else {
             if (child_container.is_inactive()) {
-              initial_entry_context iec{entry_context};
-              child_container.on_entry(iec);
+              execute_initial_entry(entry_context, child_container);
             }
           }
         };

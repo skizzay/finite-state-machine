@@ -1,221 +1,337 @@
-#include "test_objects.h"
-#include <catch.hpp>
-#include <cstddef>
-#include <skizzay/fsm/guarded_transition.h>
-#include <skizzay/fsm/hierarchical_state_container.h>
+#include "skizzay/fsm/hierarchical_state_container.h"
+
 #include <skizzay/fsm/single_state_container.h>
+#include <skizzay/fsm/states_list.h>
+#include <skizzay/fsm/type_list.h>
+
+#include "test_objects.h"
+#include <catch2/catch.hpp>
+
+#include <cstddef>
 
 using namespace skizzay::fsm;
 
-namespace {
 constexpr std::size_t num_events = 4;
 
-using parent_state_type = test_state<0, num_events>;
-using child_state_type = test_state<1, num_events>;
-using external_state_type = test_state<2, num_events>;
+using parent_state_type = test_objects::test_state<0, num_events>;
+using child_state_type = test_objects::test_state<1, num_events>;
+using external_state_type = test_objects::test_state<2, num_events>;
 using target_type =
     hierarchical_states<parent_state_type, single_state<child_state_type>>;
-} // namespace
 
 SCENARIO("hierarchical state container is state container",
          "[unit][state-container][hierarchical-state-container]") {
   THEN("simple state container is a state container") {
-    REQUIRE(is_state_container<target_type>::value);
     REQUIRE(concepts::state_container<target_type>);
   }
 }
 
-SCENARIO("hierarchical state container event handling",
+SCENARIO("hierarchical state container state examination",
          "[unit][state-container][hierarchical-state-container]") {
-  GIVEN("an hierarchical state relationship") {
+  GIVEN("a type held by the container") {
+    using type_held_by_container = front_t<states_list_t<target_type>>;
+
+    WHEN("seeing if the container holds that type") {
+      constexpr bool actual =
+          contains_v<states_list_t<target_type>, type_held_by_container>;
+
+      THEN("it's held") { REQUIRE(actual); }
+    }
+  }
+
+  GIVEN("a type not held by the container") {
+    using type_not_held_by_container = external_state_type;
+
+    WHEN("seeing if the container holds that type") {
+      constexpr bool actual =
+          contains_v<states_list_t<target_type>, type_not_held_by_container>;
+
+      THEN("it's not held") { REQUIRE_FALSE(actual); }
+    }
+  }
+}
+
+SCENARIO("hierarchical state container entry",
+         "[unit][state-container][hierarchical-state-container]") {
+  GIVEN("a hierarchical state relationship") {
     target_type target;
 
-    AND_GIVEN("a finite state machine") {
-      fake_machine machine{std::tuple{
-          guarded_transition<parent_state_type, parent_state_type,
-                             test_event<0>,
-                             bool (parent_state_type::*)(test_event<0> const &)
-                                 const noexcept>{&parent_state_type::accepts},
-          guarded_transition<child_state_type, child_state_type, test_event<1>,
-                             bool (child_state_type::*)(test_event<1> const &)
-                                 const noexcept>{&child_state_type::accepts},
-          guarded_transition<parent_state_type, external_state_type,
-                             test_event<2>,
-                             bool (parent_state_type::*)(test_event<2> const &)
-                                 const noexcept>{&parent_state_type::accepts},
-          guarded_transition<
-              child_state_type, external_state_type, test_event<3>,
-              bool (child_state_type::*)(test_event<3> const &) const noexcept>{
-              &child_state_type::accepts}}};
+    THEN("it is inactive") {
+      REQUIRE_FALSE(target.is_active());
+      REQUIRE(target.is_inactive());
+    }
 
-      THEN("it is inactive") {
-        REQUIRE_FALSE(target.is_active());
-        REQUIRE(target.is_inactive());
-        REQUIRE_FALSE(target.is<parent_state_type>());
-        REQUIRE_FALSE(target.is<child_state_type>());
+    THEN("all states return an empty current state") {
+      REQUIRE_FALSE(target.current_state<parent_state_type>().has_value());
+      REQUIRE_FALSE(target.is<parent_state_type>());
+      REQUIRE_FALSE(target.current_state<child_state_type>().has_value());
+      REQUIRE_FALSE(target.is<child_state_type>());
+    }
+
+    WHEN("initially entered") {
+      test_objects::fake_entry_context<
+          initial_entry_event_t, states_list_t<target_type>,
+          test_objects::test_events_list<num_events>>
+          entry_context;
+
+      target.on_entry(entry_context);
+
+      THEN("it is active") {
+        REQUIRE(target.is_active());
+        REQUIRE_FALSE(target.is_inactive());
       }
 
-      WHEN("initially entered") {
-        target.on_initial_entry(machine);
-        parent_state_type const &parent =
-            target.current_state<parent_state_type>();
-        child_state_type const &child =
-            target.current_state<child_state_type>();
+      THEN("all states return a valid current state") {
+        REQUIRE(target.current_state<parent_state_type>().has_value());
+        REQUIRE(target.is<parent_state_type>());
+        REQUIRE(target.current_state<child_state_type>().has_value());
+        REQUIRE(target.is<child_state_type>());
+      }
 
-        THEN("it is active") {
-          REQUIRE(target.is_active());
-          REQUIRE_FALSE(target.is_inactive());
-          REQUIRE(target.is<parent_state_type>());
-          REQUIRE(target.is<child_state_type>());
+      AND_WHEN("an event triggered by the child exits the container") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_event_transition_context<
+            event_type,
+            std::tuple<simple_transition<child_state_type, external_state_type,
+                                         event_type>>,
+            test_objects::test_states_list<num_events, 2>,
+            test_objects::test_events_list<num_events>>
+            event_transition_context;
 
-          AND_THEN("the parent was initially entered") {
-            REQUIRE(1 == parent.initial_entry_count);
-          }
-
-          AND_THEN("the child was initially entered") {
-            REQUIRE(1 == child.initial_entry_count);
-          }
-        }
-
-        AND_WHEN("finally exited") {
-          target.on_final_exit(machine);
-
-          THEN("it is inactive") {
+        bool const actual = target.on_event(event_transition_context);
+        THEN("the event was handled") {
+          REQUIRE(actual);
+          AND_THEN("it is inactive") {
             REQUIRE_FALSE(target.is_active());
             REQUIRE(target.is_inactive());
-            REQUIRE_FALSE(target.is<parent_state_type>());
-            REQUIRE_FALSE(target.is<child_state_type>());
+          }
+
+          AND_THEN("the child event exited") {
+            REQUIRE(
+                1 ==
+                target.state<child_state_type>().event_exit_count[event_id]);
+          }
+
+          AND_THEN("the parent finally exited") {
+            REQUIRE(1 == target.state<parent_state_type>().final_exit_count);
           }
         }
+      }
 
-        AND_WHEN("an event reentering the parent is triggered") {
-          constexpr std::size_t parent_reentry_event_id = 0;
-          test_event<parent_reentry_event_id> parent_reentry_event;
-          fake_transition_coordinator coordinator{machine,
-                                                  parent_reentry_event};
+      AND_WHEN("an event triggered by the parent exits the container") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_event_transition_context<
+            event_type,
+            std::tuple<simple_transition<parent_state_type, external_state_type,
+                                         event_type>>,
+            test_objects::test_states_list<num_events, 2>,
+            test_objects::test_events_list<num_events>>
+            event_transition_context;
 
-          bool const event_handling_result =
-              target.on_event(coordinator, machine, parent_reentry_event);
+        bool const actual = target.on_event(event_transition_context);
+        THEN("the event was handled") {
+          REQUIRE(actual);
+          AND_THEN("it is inactive") {
+            REQUIRE_FALSE(target.is_active());
+            REQUIRE(target.is_inactive());
+          }
 
-          THEN("the event was handled") {
-            REQUIRE(event_handling_result);
+          AND_THEN("the child finally exited") {
+            REQUIRE(1 == target.state<child_state_type>().final_exit_count);
+          }
 
-            THEN("it is active") {
-              REQUIRE(target.is_active());
-              REQUIRE_FALSE(target.is_inactive());
-              REQUIRE(target.is<parent_state_type>());
-              REQUIRE(target.is<child_state_type>());
+          AND_THEN("the parent event exited") {
+            REQUIRE(
+                1 ==
+                target.state<parent_state_type>().event_exit_count[event_id]);
+          }
+        }
+      }
 
-              AND_THEN("the parent was reentered due to the event") {
-                REQUIRE(1 ==
-                        parent.event_reentry_count.at(parent_reentry_event_id));
-              }
+      AND_WHEN("finally exited") {
+        using event_type = final_exit_event_t;
+        test_objects::fake_event_transition_context<
+            event_type, std::tuple<>,
+            test_objects::test_states_list<num_events, 2>,
+            test_objects::test_events_list<num_events>>
+            event_transition_context;
 
-              AND_THEN("the child was not affected") {
-                REQUIRE(0 ==
-                        child.event_reentry_count.at(parent_reentry_event_id));
+        bool const actual = target.on_event(event_transition_context);
+        THEN("the event was handled") {
+          REQUIRE(actual);
+
+          AND_THEN("it is not active") {
+            REQUIRE_FALSE(target.is_active());
+            REQUIRE(target.is_inactive());
+
+            AND_THEN("the child state was finally exited") {
+              REQUIRE(target.state<child_state_type>().final_exit_count == 1);
+
+              AND_THEN("the child state is inactive") {
+                REQUIRE_FALSE(
+                    target.current_state<child_state_type>().has_value());
+                REQUIRE_FALSE(target.is<child_state_type>());
               }
             }
 
-            AND_THEN("the parent state was reentered") {
-              REQUIRE(1 ==
-                      parent.event_reentry_count.at(parent_reentry_event_id));
+            AND_THEN("the parent state was finally exited") {
+              REQUIRE(target.state<parent_state_type>().final_exit_count == 1);
 
-              AND_THEN("the child state was unaffected") {
-                REQUIRE(0 ==
-                        child.event_exit_count.at(parent_reentry_event_id));
-                REQUIRE(0 ==
-                        child.event_reentry_count.at(parent_reentry_event_id));
+              AND_THEN("the parent state is inactive") {
+                REQUIRE_FALSE(
+                    target.current_state<parent_state_type>().has_value());
+                REQUIRE_FALSE(target.is<parent_state_type>());
               }
             }
           }
         }
+      }
 
-        AND_WHEN("an event reentering the child is triggered") {
-          constexpr std::size_t child_reentry_event_id = 1;
-          test_event<child_reentry_event_id> child_reentry_event;
-          fake_transition_coordinator coordinator{machine, child_reentry_event};
+      AND_WHEN("an event reeentering the parent was triggered") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_event_transition_context<
+            event_type,
+            std::tuple<simple_transition<parent_state_type, parent_state_type,
+                                         event_type>>,
+            test_objects::test_states_list<num_events, 2>,
+            test_objects::test_events_list<num_events>>
+            event_transition_context;
 
-          bool const event_handling_result =
-              target.on_event(coordinator, machine, child_reentry_event);
+        bool const actual = target.on_event(event_transition_context);
+        THEN("the event was handled") {
+          REQUIRE(actual);
+          AND_THEN("the child state has finally exited") {
+            REQUIRE(target.state<child_state_type>().final_exit_count == 1);
 
-          THEN("the event was handled") {
-            REQUIRE(event_handling_result);
-
-            AND_THEN("it is active") {
-              REQUIRE(target.is_active());
-              REQUIRE_FALSE(target.is_inactive());
-              REQUIRE(target.is<parent_state_type>());
-              REQUIRE(target.is<child_state_type>());
-            }
-
-            AND_THEN("the child state exited") {
-              REQUIRE(1 ==
-                      child.event_reentry_count.at(child_reentry_event_id));
-
-              AND_THEN("the parent state exited") {
-                REQUIRE(0 ==
-                        parent.event_exit_count.at(child_reentry_event_id));
-                REQUIRE(0 ==
-                        parent.event_reentry_count.at(child_reentry_event_id));
-              }
-            }
-          }
-        }
-
-        AND_WHEN("an event handled by the parent exits the container") {
-          constexpr std::size_t parent_exit_event_id = 2;
-          test_event<parent_exit_event_id> parent_exit_event;
-          fake_transition_coordinator coordinator{machine, parent_exit_event};
-
-          bool const event_handling_result =
-              target.on_event(coordinator, machine, parent_exit_event);
-
-          THEN("the event was handled") {
-            REQUIRE(event_handling_result);
-
-            AND_THEN("it is inactive") {
-              REQUIRE_FALSE(target.is_active());
-              REQUIRE(target.is_inactive());
-              REQUIRE_FALSE(target.is<parent_state_type>());
+            AND_THEN("the child state is inactive") {
+              REQUIRE_FALSE(
+                  target.current_state<child_state_type>().has_value());
               REQUIRE_FALSE(target.is<child_state_type>());
             }
+          }
+        }
 
-            AND_THEN("the parent state exited") {
-              REQUIRE(1 == parent.event_exit_count.at(parent_exit_event_id));
+        AND_WHEN("entered") {
+          test_objects::fake_entry_context<
+              event_type,
+              states_list<parent_state_type, child_state_type,
+                          external_state_type>,
+              test_objects::test_events_list<num_events>,
+              states_list<parent_state_type>>
+              entry_context;
 
-              AND_THEN("the child state exited") {
-                REQUIRE(1 == child.final_exit_count);
-              }
+          target.on_entry(entry_context);
+          THEN("the parent was event reentered") {
+            REQUIRE(1 == target.current_state<parent_state_type>()
+                             .value()
+                             .event_reentry_count[event_id]);
+          }
+
+          THEN("the child was initially entered") {
+            REQUIRE(2 == target.current_state<child_state_type>()
+                             .value()
+                             .initial_entry_count);
+          }
+        }
+      }
+
+      AND_WHEN("an event reeentering the child was triggered") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_event_transition_context<
+            event_type,
+            std::tuple<simple_transition<child_state_type, child_state_type,
+                                         event_type>>,
+            test_objects::test_states_list<num_events, 2>,
+            test_objects::test_events_list<num_events>>
+            event_transition_context;
+
+        bool const actual = target.on_event(event_transition_context);
+        THEN("the event was handled") {
+          REQUIRE(actual);
+          AND_THEN("the child state has not exited") {
+            REQUIRE(target.state<child_state_type>().event_exit_count[0] == 0);
+
+            AND_THEN("the child state is active") {
+              REQUIRE(target.current_state<child_state_type>().has_value());
+              REQUIRE(target.is<child_state_type>());
             }
           }
         }
 
-        AND_WHEN("an event handled by the child exits the container") {
-          constexpr std::size_t child_exit_event_id = 3;
-          test_event<child_exit_event_id> child_exit_event;
-          fake_transition_coordinator coordinator{machine, child_exit_event};
+        AND_WHEN("entered") {
+          test_objects::fake_entry_context<
+              event_type,
+              states_list<parent_state_type, child_state_type,
+                          external_state_type>,
+              test_objects::test_events_list<num_events>,
+              states_list<child_state_type>>
+              entry_context;
 
-          bool const event_handling_result =
-              target.on_event(coordinator, machine, child_exit_event);
+          target.on_entry(entry_context);
+          THEN("the parent was not reentered") {
+            REQUIRE(0 == target.current_state<parent_state_type>()
+                             .value()
+                             .event_reentry_count[event_id]);
+          }
 
-          THEN("the event was handled") {
-            REQUIRE(event_handling_result);
+          THEN("the child was reentered") {
+            REQUIRE(1 == target.current_state<child_state_type>()
+                             .value()
+                             .event_reentry_count[event_id]);
+          }
+        }
+      }
 
-            AND_THEN("it is inactive") {
-              REQUIRE_FALSE(target.is_active());
-              REQUIRE(target.is_inactive());
-              REQUIRE_FALSE(target.is<parent_state_type>());
+      AND_WHEN("an event exiting the child and entering the parent was "
+               "triggered") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_event_transition_context<
+            event_type,
+            std::tuple<simple_transition<child_state_type, parent_state_type,
+                                         event_type>>,
+            test_objects::test_states_list<num_events, 2>,
+            test_objects::test_events_list<num_events>>
+            event_transition_context;
+
+        bool const actual = target.on_event(event_transition_context);
+        THEN("the event was handled") {
+          REQUIRE(actual);
+          AND_THEN("the child state was event exited") {
+            REQUIRE(target.state<child_state_type>().event_exit_count[0] == 1);
+
+            AND_THEN("the child state is inactive") {
+              REQUIRE_FALSE(
+                  target.current_state<child_state_type>().has_value());
               REQUIRE_FALSE(target.is<child_state_type>());
             }
+          }
+        }
 
-            AND_THEN("the child state exited") {
-              REQUIRE(1 == child.event_exit_count.at(child_exit_event_id));
+        AND_WHEN("entered") {
+          test_objects::fake_entry_context<
+              event_type,
+              states_list<parent_state_type, child_state_type,
+                          external_state_type>,
+              test_objects::test_events_list<num_events>,
+              states_list<parent_state_type>>
+              entry_context;
 
-              AND_THEN("the parent state exited") {
-                REQUIRE(1 == parent.final_exit_count);
-              }
-            }
+          target.on_entry(entry_context);
+          THEN("the parent was reentered") {
+            REQUIRE(1 == target.current_state<parent_state_type>()
+                             .value()
+                             .event_reentry_count[event_id]);
+          }
+
+          THEN("the child was initially entered") {
+            REQUIRE(2 == target.current_state<child_state_type>()
+                             .value()
+                             .initial_entry_count);
           }
         }
       }

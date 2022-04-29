@@ -20,6 +20,10 @@ template <typename Transition, typename TransitionTable>
 concept transition_in = transition<std::remove_cvref_t<Transition>> &&
     transition_table<TransitionTable> &&
     contains_v<TransitionTable, Transition>;
+
+template <typename Transition, typename TransitionTable>
+concept self_transition_in =
+    self_transition<Transition> && transition_in<Transition, TransitionTable>;
 } // namespace concepts
 
 template <typename Transition, typename TransitionTable>

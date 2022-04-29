@@ -14,9 +14,8 @@ target_sources(fsm INTERFACE
    skizzay/fsm/event_handler.h
    skizzay/fsm/event_provider.h
    skizzay/fsm/events_list.h
-   skizzay/fsm/final_event_transition_context.h
    skizzay/fsm/flat_state_container.h
-   skizzay/fms/initial_entry_context.h
+   skizzay/fsm/hierarchical_state_container.h
    skizzay/fsm/optional_reference.h
    skizzay/fsm/overload.h
    skizzay/fsm/simple_transition.h

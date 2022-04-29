@@ -4,6 +4,7 @@
 #include "skizzay/fsm/event_context_node.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/optional_reference.h"
+#include "skizzay/fsm/state.h"
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/state_containers_list.h"
 #include "skizzay/fsm/states_list.h"
@@ -25,11 +26,6 @@ template <concepts::states_list StatesList> struct contains_any_states {
   template <concepts::state_container StateContainer>
   using test = contains_any<StatesList, states_list_t<StateContainer>>;
 };
-
-// template <concepts::states_list StatesList,
-//           concepts::state_container StateContainer>
-// using contains_any_states =
-//     contains_any<StatesList, states_list_t<StateContainer>>;
 
 template <concepts::entry_context EntryContext,
           concepts::state_containers_list StateContainersList>
