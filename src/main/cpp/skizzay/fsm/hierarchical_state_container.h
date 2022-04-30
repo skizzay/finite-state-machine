@@ -217,41 +217,6 @@ public:
       }
     }
   }
-
-  // template <typename TransitionCoordinator, concepts::machine Machine,
-  //           concepts::event_in<events_list_t<Machine>> Event>
-  // constexpr bool
-  // on_event(TransitionCoordinator &incoming_transition_coordinator,
-  //          Machine &machine, Event const &event) {
-  //   child_transition_coordinator ctc{incoming_transition_coordinator,
-  //                                    parent_state_container_,
-  //                                    child_state_container_};
-  //   if (!child_state_container_.on_event(ctc, machine, event)) {
-  //     node_transition_coordinator parent_transition_coordinator{
-  //         incoming_transition_coordinator, *this};
-  //     bool const result = parent_state_container_.on_event(
-  //         parent_transition_coordinator, machine, event);
-  //     if (parent_transition_coordinator.will_exit_container()) {
-  //       child_state_container_.on_final_exit(machine);
-  //       // The parent state container has already been deactivated during the
-  //       // call to on_event, but haven't exited yet. We just need to invoke
-  //       the
-  //       // exit callback on the state.  This ensures that we exit the parent
-  //       // state after the child state.
-  //       exit(parent_state_container_.state_, machine, event);
-  //     }
-  //     return result;
-  //   } else if (ctc.child_to_parent_transition_triggered()) {
-  //     reenter(parent_state_container_.state_, machine, event);
-  //     child_state_container_.on_initial_entry(machine);
-  //     return true;
-  //   } else if (ctc.will_exit_container()) {
-  //     parent_state_container_.on_final_exit(machine);
-  //     return true;
-  //   } else {
-  //     return true;
-  //   }
-  // }
 };
 } // namespace hierarchical_state_container_details_
 

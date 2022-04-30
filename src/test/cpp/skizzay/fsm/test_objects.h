@@ -150,6 +150,11 @@ struct fake_event_transition_context {
                                                   state);
   }
 
+  constexpr std::tuple<>
+  get_transitions(skizzay::fsm::concepts::state auto const &) const noexcept {
+    return {};
+  }
+
   template <skizzay::fsm::concepts::state_in<
       skizzay::fsm::next_states_list_t<transition_table_type>>
                 State>
@@ -159,8 +164,13 @@ struct fake_event_transition_context {
 template <skizzay::fsm::concepts::event Event,
           skizzay::fsm::concepts::states_list StatesList,
           skizzay::fsm::concepts::events_list EventsList,
-          skizzay::fsm::concepts::states_list NextStatesList = StatesList>
+          skizzay::fsm::concepts::states_list NextStatesList = StatesList,
+          skizzay::fsm::concepts::states_list ScheduledNextStatesList =
+              NextStatesList>
 struct fake_entry_context {
+  static_assert(
+      skizzay::fsm::contains_all_v<NextStatesList, ScheduledNextStatesList>,
+      "Scheduled states must be a subset of next states");
   using event_type = Event;
   using states_list_type = StatesList;
   using events_list_type = EventsList;
@@ -193,9 +203,9 @@ struct fake_entry_context {
     posted_epsilon_events += 1;
   }
 
-  template <skizzay::fsm::concepts::state_in<next_states_list_type>>
+  template <skizzay::fsm::concepts::state_in<next_states_list_type> State>
   constexpr bool is_scheduled() const noexcept {
-    return true;
+    return skizzay::fsm::concepts::state_in<State, ScheduledNextStatesList>;
   }
 };
 } // namespace test_objects

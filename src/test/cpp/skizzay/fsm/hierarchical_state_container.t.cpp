@@ -88,6 +88,337 @@ SCENARIO("hierarchical state container entry",
         REQUIRE(target.is<child_state_type>());
       }
 
+      THEN("the parent state initially entered") {
+        REQUIRE(1 == target.current_state<parent_state_type>()
+                         .value()
+                         .initial_entry_count);
+      }
+
+      THEN("the child state initially entered") {
+        REQUIRE(1 == target.current_state<child_state_type>()
+                         .value()
+                         .initial_entry_count);
+      }
+    }
+
+    AND_GIVEN("list of next states is the parent only") {
+      using next_states_list_type = states_list<parent_state_type>;
+
+      WHEN("entered by an event transitioning to the parent only") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_entry_context<
+            event_type,
+            states_list<parent_state_type, child_state_type,
+                        external_state_type>,
+            test_objects::test_events_list<num_events>, next_states_list_type>
+            entry_context;
+
+        target.on_entry(entry_context);
+
+        THEN("it is active") {
+          REQUIRE(target.is_active());
+          REQUIRE_FALSE(target.is_inactive());
+        }
+
+        THEN("all states return a valid current state") {
+          REQUIRE(target.current_state<parent_state_type>().has_value());
+          REQUIRE(target.is<parent_state_type>());
+          REQUIRE(target.current_state<child_state_type>().has_value());
+          REQUIRE(target.is<child_state_type>());
+        }
+
+        THEN("the parent state event entered") {
+          REQUIRE(1 == target.current_state<parent_state_type>()
+                           .value()
+                           .event_entry_count[event_id]);
+          AND_THEN("the parent state did not initially enter") {
+            REQUIRE(0 == target.current_state<parent_state_type>()
+                             .value()
+                             .initial_entry_count);
+          }
+        }
+
+        THEN("the child state initially entered") {
+          REQUIRE(1 == target.current_state<child_state_type>()
+                           .value()
+                           .initial_entry_count);
+          AND_THEN("the child state did not event enter") {
+            REQUIRE(0 == target.current_state<child_state_type>()
+                             .value()
+                             .event_entry_count[event_id]);
+          }
+        }
+      }
+    }
+
+    AND_GIVEN("list of next states is the child only") {
+      using next_states_list_type = states_list<child_state_type>;
+
+      WHEN("entered by an event transitioning to the child only") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_entry_context<
+            event_type,
+            states_list<parent_state_type, child_state_type,
+                        external_state_type>,
+            test_objects::test_events_list<num_events>, next_states_list_type>
+            entry_context;
+
+        target.on_entry(entry_context);
+
+        THEN("it is active") {
+          REQUIRE(target.is_active());
+          REQUIRE_FALSE(target.is_inactive());
+        }
+
+        THEN("all states return a valid current state") {
+          REQUIRE(target.current_state<parent_state_type>().has_value());
+          REQUIRE(target.is<parent_state_type>());
+          REQUIRE(target.current_state<child_state_type>().has_value());
+          REQUIRE(target.is<child_state_type>());
+        }
+
+        THEN("the parent state initially entered") {
+          REQUIRE(1 == target.current_state<parent_state_type>()
+                           .value()
+                           .initial_entry_count);
+          AND_THEN("the parent state did not event enter") {
+            REQUIRE(0 == target.current_state<parent_state_type>()
+                             .value()
+                             .event_entry_count[event_id]);
+          }
+        }
+
+        THEN("the child state event entered") {
+          REQUIRE(1 == target.current_state<child_state_type>()
+                           .value()
+                           .event_entry_count[event_id]);
+          AND_THEN("the child state did not initially enter") {
+            REQUIRE(0 == target.current_state<child_state_type>()
+                             .value()
+                             .initial_entry_count);
+          }
+        }
+      }
+    }
+
+    AND_GIVEN("list of next states is the parent and the child") {
+      using next_states_list_type =
+          states_list<parent_state_type, child_state_type>;
+
+      WHEN("entered by an event transitioning to the parent and the child") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_entry_context<
+            event_type,
+            states_list<parent_state_type, child_state_type,
+                        external_state_type>,
+            test_objects::test_events_list<num_events>, next_states_list_type>
+            entry_context;
+
+        target.on_entry(entry_context);
+
+        THEN("it is active") {
+          REQUIRE(target.is_active());
+          REQUIRE_FALSE(target.is_inactive());
+        }
+
+        THEN("all states return a valid current state") {
+          REQUIRE(target.current_state<parent_state_type>().has_value());
+          REQUIRE(target.is<parent_state_type>());
+          REQUIRE(target.current_state<child_state_type>().has_value());
+          REQUIRE(target.is<child_state_type>());
+        }
+
+        THEN("the parent state event entered") {
+          REQUIRE(1 == target.current_state<parent_state_type>()
+                           .value()
+                           .event_entry_count[event_id]);
+          AND_THEN("the parent state did not initially enter") {
+            REQUIRE(0 == target.current_state<parent_state_type>()
+                             .value()
+                             .initial_entry_count);
+          }
+        }
+
+        THEN("the child state event entered") {
+          REQUIRE(1 == target.current_state<child_state_type>()
+                           .value()
+                           .event_entry_count[event_id]);
+          AND_THEN("the child state did not initially enter") {
+            REQUIRE(0 == target.current_state<child_state_type>()
+                             .value()
+                             .initial_entry_count);
+          }
+        }
+      }
+
+      WHEN("entered by an event transitioning to the parent only") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_entry_context<
+            event_type,
+            states_list<parent_state_type, child_state_type,
+                        external_state_type>,
+            test_objects::test_events_list<num_events>, next_states_list_type,
+            states_list<parent_state_type>>
+            entry_context;
+
+        target.on_entry(entry_context);
+
+        THEN("it is active") {
+          REQUIRE(target.is_active());
+          REQUIRE_FALSE(target.is_inactive());
+        }
+
+        THEN("all states return a valid current state") {
+          REQUIRE(target.current_state<parent_state_type>().has_value());
+          REQUIRE(target.is<parent_state_type>());
+          REQUIRE(target.current_state<child_state_type>().has_value());
+          REQUIRE(target.is<child_state_type>());
+        }
+
+        THEN("the parent state event entered") {
+          REQUIRE(1 == target.current_state<parent_state_type>()
+                           .value()
+                           .event_entry_count[event_id]);
+          AND_THEN("the parent state did not initially enter") {
+            REQUIRE(0 == target.current_state<parent_state_type>()
+                             .value()
+                             .initial_entry_count);
+          }
+        }
+
+        THEN("the child state initially entered") {
+          REQUIRE(1 == target.current_state<child_state_type>()
+                           .value()
+                           .initial_entry_count);
+          AND_THEN("the child state did not event enter") {
+            REQUIRE(0 == target.current_state<child_state_type>()
+                             .value()
+                             .event_entry_count[event_id]);
+          }
+        }
+      }
+
+      WHEN("entered by an event transitioning to the child only") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_entry_context<
+            event_type,
+            states_list<parent_state_type, child_state_type,
+                        external_state_type>,
+            test_objects::test_events_list<num_events>, next_states_list_type,
+            states_list<child_state_type>>
+            entry_context;
+
+        target.on_entry(entry_context);
+
+        THEN("it is active") {
+          REQUIRE(target.is_active());
+          REQUIRE_FALSE(target.is_inactive());
+        }
+
+        THEN("all states return a valid current state") {
+          REQUIRE(target.current_state<parent_state_type>().has_value());
+          REQUIRE(target.is<parent_state_type>());
+          REQUIRE(target.current_state<child_state_type>().has_value());
+          REQUIRE(target.is<child_state_type>());
+        }
+
+        THEN("the parent state initially entered") {
+          REQUIRE(1 == target.current_state<parent_state_type>()
+                           .value()
+                           .initial_entry_count);
+          AND_THEN("the parent state did not event enter") {
+            REQUIRE(0 == target.current_state<parent_state_type>()
+                             .value()
+                             .event_entry_count[event_id]);
+          }
+        }
+
+        THEN("the child state event entered") {
+          REQUIRE(1 == target.current_state<child_state_type>()
+                           .value()
+                           .event_entry_count[event_id]);
+          AND_THEN("the child state did not initially enter") {
+            REQUIRE(0 == target.current_state<child_state_type>()
+                             .value()
+                             .initial_entry_count);
+          }
+        }
+      }
+    }
+  }
+}
+
+SCENARIO("hierarchical state container event handling and subsequent entry",
+         "[unit][state-container][hierarchical-state-container]") {
+  GIVEN("a hierarchical state relationship") {
+    target_type target;
+
+    THEN("it is inactive") {
+      REQUIRE_FALSE(target.is_active());
+      REQUIRE(target.is_inactive());
+    }
+
+    THEN("all states return an empty current state") {
+      REQUIRE_FALSE(target.current_state<parent_state_type>().has_value());
+      REQUIRE_FALSE(target.is<parent_state_type>());
+      REQUIRE_FALSE(target.current_state<child_state_type>().has_value());
+      REQUIRE_FALSE(target.is<child_state_type>());
+    }
+
+    WHEN("initially entered") {
+      test_objects::fake_entry_context<
+          initial_entry_event_t, states_list_t<target_type>,
+          test_objects::test_events_list<num_events>>
+          entry_context;
+
+      target.on_entry(entry_context);
+
+      THEN("it is active") {
+        REQUIRE(target.is_active());
+        REQUIRE_FALSE(target.is_inactive());
+      }
+
+      THEN("all states return a valid current state") {
+        REQUIRE(target.current_state<parent_state_type>().has_value());
+        REQUIRE(target.is<parent_state_type>());
+        REQUIRE(target.current_state<child_state_type>().has_value());
+        REQUIRE(target.is<child_state_type>());
+      }
+
+      AND_WHEN("an event is raised but not handled by the container") {
+        constexpr std::size_t const event_id = 0;
+        using event_type = test_objects::test_event<event_id>;
+        test_objects::fake_event_transition_context<
+            event_type,
+            std::tuple<simple_transition<external_state_type, child_state_type,
+                                         event_type>>,
+            test_objects::test_states_list<num_events, 2>,
+            test_objects::test_events_list<num_events>>
+            event_transition_context;
+
+        bool const handled = target.on_event(event_transition_context);
+        THEN("the event was not handled") {
+          REQUIRE_FALSE(handled);
+
+          AND_THEN("it is active") {
+            REQUIRE(target.is_active());
+            REQUIRE_FALSE(target.is_inactive());
+          }
+
+          AND_THEN("all states return a valid current state") {
+            REQUIRE(target.current_state<parent_state_type>().has_value());
+            REQUIRE(target.is<parent_state_type>());
+            REQUIRE(target.current_state<child_state_type>().has_value());
+            REQUIRE(target.is<child_state_type>());
+          }
+        }
+      }
+
       AND_WHEN("an event triggered by the child exits the container") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
