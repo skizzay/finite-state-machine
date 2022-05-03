@@ -9,29 +9,20 @@
 
 namespace skizzay::fsm {
 
+template <concepts::state> struct single_state;
+
 template <concepts::state State>
-requires(!concepts::state_container<State>) struct single_state
-    : basic_state_container<single_state<State>> {
-  using states_list_type = states_list<State>;
+requires(!concepts::state_container<State>) struct basic_states_list_t<
+    single_state<State>> {
+  using type = states_list<State>;
+};
 
-  constexpr single_state() noexcept(
-      std::is_nothrow_default_constructible_v<
-          State>) requires(std::is_default_constructible_v<State>) = default;
+template <concepts::state State>
+requires(!concepts::state_container<State>) struct single_state<State>
+    : basic_state_container<single_state<State>, State> {
 
-  template <typename... Args>
-  requires std::is_constructible_v<State, Args...>
-  constexpr explicit single_state(Args &&...args) noexcept(
-      std::is_nothrow_constructible_v<State, Args...>)
-      : basic_state_container<single_state<State>>{}, state_{std::forward<Args>(
-                                                          args)...} {}
-
-private:
-  friend basic_state_container<single_state<State>>;
-  State state_;
-
-  constexpr State &get_state() noexcept { return state_; }
-
-  constexpr State const &get_state() const noexcept { return state_; }
+  using basic_state_container<single_state<State>,
+                              State>::basic_state_container;
 };
 
 template <concepts::state State>

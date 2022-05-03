@@ -344,4 +344,32 @@ struct curry {
   template <typename... Us> using type = Template<Ts..., Us...>;
 };
 
+namespace compose_details_ {
+template <template <typename...> typename Template, typename... Us>
+struct impl {
+  using type = Template<Us...>;
+};
+
+template <template <typename...> typename Template, typename... Us>
+requires requires { typename Template<Us...>::type; }
+struct impl<Template, Us...> {
+  using type = typename Template<Us...>::type;
+};
+} // namespace compose_details_
+
+template <template <typename...> typename...> struct compose;
+
+template <template <typename...> typename T> struct compose<T> {
+  template <typename... Us>
+  using type = typename compose_details_::impl<T, Us...>::type;
+};
+
+template <template <typename...> typename T0,
+          template <typename...> typename... Ts>
+struct compose<T0, Ts...> {
+  template <typename... Us>
+  using type = typename compose_details_::impl<
+      T0, typename compose<Ts...>::template type<Us...>>::type;
+};
+
 } // namespace skizzay::fsm

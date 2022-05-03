@@ -142,6 +142,22 @@ public:
         .template current_state<S>();
   }
 
+  template <concepts::query<states_list_type> Query>
+  constexpr bool query(Query &&query) const
+      noexcept(concepts::nothrow_query<Query, states_list_type>) {
+    return [this]<std::size_t... Is>(
+        Query && query,
+        std::index_sequence<
+            Is...> const) noexcept(concepts::nothrow_query<Query,
+                                                           states_list_type>) {
+      return (((Is == current_index_) &&
+               std::get<Is>(state_containers_).query(query)) ||
+              ...);
+    }
+    (std::forward<Query>(query),
+     std::make_index_sequence<length_v<tuple_type>>{});
+  }
+
   template <concepts::state_in<states_list_type> S>
   constexpr S const &state() const noexcept {
     return this->template get_state_container_for<S>().template state<S>();

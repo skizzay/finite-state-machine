@@ -18,21 +18,10 @@ namespace hierarchical_state_container_details_ {
 
 template <concepts::state ParentState>
 struct parent_state_container
-    : basic_state_container<parent_state_container<ParentState>> {
-  using states_list_type = states_list<ParentState>;
-  ParentState state_;
+    : basic_state_container<parent_state_container<ParentState>, ParentState> {
 
-  constexpr parent_state_container() noexcept(
-      std::is_nothrow_default_constructible_v<ParentState>) = default;
-
-  constexpr explicit parent_state_container(ParentState state) noexcept(
-      std::is_nothrow_move_constructible_v<ParentState>)
-      : basic_state_container<parent_state_container<ParentState>>{},
-        state_{std::move_if_noexcept(state)} {}
-
-  constexpr ParentState &get_state() noexcept { return state_; }
-
-  constexpr ParentState const &get_state() const noexcept { return state_; }
+  using basic_state_container<parent_state_container<ParentState>,
+                              ParentState>::basic_state_container;
 
   constexpr void do_exit(concepts::event_context auto &) noexcept {}
 };
@@ -150,6 +139,13 @@ public:
   constexpr optional_reference<S const> current_state() const noexcept {
     return this->template get_state_container_for<S>()
         .template current_state<S>();
+  }
+
+  template <concepts::query<states_list_type> Query>
+  constexpr bool query(Query &&query) const
+      noexcept(concepts::nothrow_query<Query, states_list_type>) {
+    return parent_state_container_.query(std::forward<Query>(query)) ||
+           child_state_container_.query(std::forward<Query>(query));
   }
 
   template <concepts::state_in<states_list_type> S>

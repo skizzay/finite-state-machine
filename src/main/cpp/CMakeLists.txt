@@ -16,8 +16,10 @@ target_sources(fsm INTERFACE
    skizzay/fsm/events_list.h
    skizzay/fsm/flat_state_container.h
    skizzay/fsm/hierarchical_state_container.h
+   skizzay/fsm/is_done.h
    skizzay/fsm/optional_reference.h
    skizzay/fsm/overload.h
+   skizzay/fsm/query.h
    skizzay/fsm/simple_transition.h
    skizzay/fsm/single_state_container.h
    skizzay/fsm/state.h

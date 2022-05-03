@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <concepts>
+#include <functional>
 #include <stdexcept>
 #include <type_traits>
 
@@ -25,44 +26,54 @@ namespace basic_state_container_details_ {
 
 enum class acceptance_type { unaccepted, reentered, exited };
 
-template <typename State, typename DerivedStateContainer>
-concept derived_container_state = concepts::state<State> &&
-    requires(DerivedStateContainer &dsc, DerivedStateContainer const &dscc) {
-  { dsc.get_state() }
-  noexcept->std::same_as<std::remove_cvref_t<State> &>;
-  { dscc.get_state() }
-  noexcept->std::same_as<std::remove_cvref_t<State> const &>;
-};
-
-template <typename Derived> struct container {
+template <typename Derived, concepts::state State>
+requires std::same_as<State, std::remove_cvref_t<State>> &&
+    (!concepts::state_container<State>)struct container {
   friend Derived;
 
-  template <derived_container_state<Derived> = state_t<Derived>>
-  constexpr bool is() const noexcept {
+  using states_list_type = states_list<State>;
+
+  constexpr container() noexcept(
+      std::is_nothrow_default_constructible_v<
+          State>) requires(std::is_default_constructible_v<State>) = default;
+
+  template <typename... Args>
+  requires std::is_constructible_v<State, Args...>
+  constexpr explicit container(Args &&...args) noexcept(
+      std::is_nothrow_constructible_v<State, Args...>)
+      : state_{std::forward<Args>(args)...} {}
+
+  template <std::same_as<State> _ = State> constexpr bool is() const noexcept {
     return is_active();
   }
 
-  template <derived_container_state<Derived> State = state_t<Derived>>
-  constexpr optional_reference<std::remove_cvref_t<State> const>
-  current_state() const noexcept {
-    using result_type = optional_reference<std::remove_cvref_t<State> const>;
+  template <std::same_as<State> _ = State>
+  constexpr optional_reference<State const> current_state() const noexcept {
+    using result_type = optional_reference<State const>;
     return is_active() ? result_type{this->template state<State>()}
                        : result_type{std::nullopt};
   }
 
-  template <derived_container_state<Derived> State = state_t<Derived>>
-  constexpr std::remove_cvref_t<State> &state() noexcept {
-    return derived().get_state();
+  template <std::same_as<State> _ = State> constexpr State &state() noexcept {
+    return state_;
   }
 
-  template <derived_container_state<Derived> State = state_t<Derived>>
-  constexpr std::remove_cvref_t<State> const &state() const noexcept {
-    return derived().get_state();
+  template <std::same_as<State> _ = State>
+  constexpr State const &state() const noexcept {
+    return state_;
   }
 
   constexpr bool is_active() const noexcept { return active_; }
 
   constexpr bool is_inactive() const noexcept { return !active_; }
+
+  template <concepts::query<states_list_type> Query>
+  constexpr bool query(Query &&query) const
+      noexcept(concepts::nothrow_query<Query, states_list_type>) {
+    assert(is_active() || "Trying to query an inactive state container");
+    std::invoke(std::forward<Query>(query), state_);
+    return is_done(query);
+  }
 
   constexpr void on_entry(concepts::initial_entry_context auto &entry_context) {
     activate(entry_context);
@@ -97,6 +108,7 @@ template <typename Derived> struct container {
 
 private:
   bool active_ = false;
+  State state_;
 
   constexpr Derived &derived() noexcept {
     return *static_cast<Derived *>(this);
@@ -185,7 +197,7 @@ private:
 };
 } // namespace basic_state_container_details_
 
-template <typename Derived>
+template <typename Derived, concepts::state State>
 using basic_state_container =
-    basic_state_container_details_::container<Derived>;
+    basic_state_container_details_::container<Derived, State>;
 } // namespace skizzay::fsm

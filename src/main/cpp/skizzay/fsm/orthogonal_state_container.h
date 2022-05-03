@@ -147,6 +147,22 @@ public:
     return std::get<0>(state_containers_).is_inactive();
   }
 
+  template <concepts::query<states_list_type> Query>
+  constexpr bool query(Query &&query) const
+      noexcept(concepts::nothrow_query<Query, states_list_type>) {
+    return [this]<std::size_t... Is>(
+        Query && query,
+        std::index_sequence<
+            Is...> const) noexcept(concepts::nothrow_query<Query,
+                                                           states_list_type>) {
+      return (
+          std::get<Is>(state_containers_).query(std::forward<Query>(query)) &&
+          ...);
+    }
+    (std::forward<Query>(query),
+     std::make_index_sequence<length_v<tuple_type>>{});
+  }
+
   constexpr void on_entry(concepts::initial_entry_context auto &entry_context) {
     std::apply(
         [&entry_context](StateContainers &...state_containers) {

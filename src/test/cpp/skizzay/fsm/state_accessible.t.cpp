@@ -33,6 +33,8 @@ struct valid_state_queryable {
   constexpr optional_reference<S const> current_state() const noexcept {
     return s;
   }
+
+  template <typename F> constexpr bool query(F &&f) const { return is_done(f); }
 };
 
 struct missing_const_get : valid_state_queryable {

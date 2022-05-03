@@ -22,6 +22,8 @@ struct not_state_accessible {
     return s;
   }
 
+  template <typename F> constexpr bool query(F &&f) const { return is_done(f); }
+
   template <std::same_as<test_state_type>>
   constexpr test_state_type &state() noexcept {
     return s;
@@ -55,6 +57,8 @@ struct missing_on_event_member_function {
     return s;
   }
 
+  template <typename F> constexpr bool query(F &&f) const { return is_done(f); }
+
   template <std::same_as<test_state_type>>
   constexpr test_state_type &state() noexcept {
     return s;
@@ -83,6 +87,8 @@ struct missing_is_active_member_function {
   constexpr optional_reference<S const> current_state() const noexcept {
     return s;
   }
+
+  template <typename F> constexpr bool query(F &&f) const { return is_done(f); }
 
   template <std::same_as<test_state_type>>
   constexpr test_state_type &state() noexcept {
@@ -115,6 +121,8 @@ struct missing_is_inactive_member_function {
     return s;
   }
 
+  template <typename F> constexpr bool query(F &&f) const { return is_done(f); }
+
   template <std::same_as<test_state_type>>
   constexpr test_state_type &state() noexcept {
     return s;
@@ -145,6 +153,8 @@ struct valid_state_container {
   constexpr optional_reference<S const> current_state() const noexcept {
     return s;
   }
+
+  template <typename F> constexpr bool query(F &&f) const { return is_done(f); }
 
   template <std::same_as<test_state_type>>
   constexpr test_state_type &state() noexcept {

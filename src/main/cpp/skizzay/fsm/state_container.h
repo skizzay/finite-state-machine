@@ -1,6 +1,7 @@
 #pragma once
 
 #include "skizzay/fsm/boolean.h"
+#include "skizzay/fsm/const_ref.h"
 #include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_engine.h"
 #include "skizzay/fsm/events_list.h"
