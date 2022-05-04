@@ -155,8 +155,8 @@ public:
         std::index_sequence<
             Is...> const) noexcept(concepts::nothrow_query<Query,
                                                            states_list_type>) {
-      return (
-          std::get<Is>(state_containers_).query(std::forward<Query>(query)) &&
+      return !(
+          !std::get<Is>(state_containers_).query(std::forward<Query>(query)) &&
           ...);
     }
     (std::forward<Query>(query),

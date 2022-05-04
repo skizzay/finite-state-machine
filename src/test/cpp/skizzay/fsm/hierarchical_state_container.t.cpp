@@ -674,8 +674,8 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
 }
 
 SCENARIO("hierarchical state container querying",
-         "[unit][state-container][single-state-container]") {
-  GIVEN("a hierarchical single state container") {
+         "[unit][state-container][hierarchical-state-container]") {
+  GIVEN("an active hierarchical state container") {
     target_type target;
     test_objects::fake_entry_context<
         initial_entry_event_t, test_objects::test_states_list<num_events, 2>,

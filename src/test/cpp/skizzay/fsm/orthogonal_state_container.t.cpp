@@ -276,3 +276,60 @@ SCENARIO("entry into orthogonal states",
     }
   }
 }
+
+SCENARIO("orthogonal state container querying",
+         "[unit][state-container][orthogonal-state-container]") {
+  GIVEN("an active orthogonal state container") {
+    target_type target;
+    test_objects::fake_entry_context<
+        initial_entry_event_t, test_objects::test_states_list<num_events, 2>,
+        test_objects::test_events_list<num_events>>
+        initial_entry_context;
+    target.on_entry(initial_entry_context);
+
+    WHEN("queried that is done after visiting first container") {
+      test_objects::test_query<length_v<states_list_t<target_type>>> query{0};
+      bool const is_done = target.query(query);
+
+      THEN("the result is done") { REQUIRE(is_done); }
+
+      THEN("the first state was queried") {
+        REQUIRE(1 == query.states_queried[0]);
+      }
+
+      THEN("the second state was not queried") {
+        REQUIRE(0 == query.states_queried[1]);
+      }
+    }
+
+    WHEN("queried that is done after visiting second container") {
+      test_objects::test_query<length_v<states_list_t<target_type>>> query{1};
+      bool const is_done = target.query(query);
+
+      THEN("the result is done") { REQUIRE(is_done); }
+
+      THEN("the first state was queried") {
+        REQUIRE(1 == query.states_queried[0]);
+      }
+
+      THEN("the second state was queried") {
+        REQUIRE(1 == query.states_queried[1]);
+      }
+    }
+
+    WHEN("queried that is not done after visitation") {
+      test_objects::test_query<length_v<states_list_t<target_type>>> query;
+      bool const is_done = target.query(query);
+
+      THEN("the result is not done") { REQUIRE_FALSE(is_done); }
+
+      THEN("the first state was queried") {
+        REQUIRE(1 == query.states_queried[0]);
+      }
+
+      THEN("the second state was queried") {
+        REQUIRE(1 == query.states_queried[1]);
+      }
+    }
+  }
+}
