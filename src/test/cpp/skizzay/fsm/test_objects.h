@@ -208,4 +208,34 @@ struct fake_entry_context {
     return skizzay::fsm::concepts::state_in<State, ScheduledNextStatesList>;
   }
 };
+
+template <std::size_t NumStates> struct test_query {
+  std::array<std::size_t, NumStates> states_queried = {0};
+
+  constexpr test_query() noexcept = default;
+  constexpr explicit test_query(std::size_t const stop_after_index) noexcept
+      : states_queried{0}, done_index_{stop_after_index} {}
+
+  template <std::size_t Id, std::size_t NumEvents>
+  constexpr void operator()(test_state<Id, NumEvents> const &) noexcept {
+    states_queried[Id] += 1;
+  }
+
+  constexpr void stop_at(std::size_t const index) noexcept {
+    done_index_ = index;
+  }
+
+  constexpr void dont_stop() noexcept { stop_at(NumStates); }
+
+  constexpr bool is_done() const noexcept {
+    return [this]<std::size_t... Is>(
+        std::index_sequence<Is...> const) noexcept {
+      return (((0 < states_queried[Is]) && (Is == done_index_)) || ...);
+    }
+    (std::make_index_sequence<NumStates>{});
+  }
+
+private:
+  std::size_t done_index_ = NumStates;
+};
 } // namespace test_objects

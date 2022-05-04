@@ -5,6 +5,7 @@
 #include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/exit.h"
+#include "skizzay/fsm/is_done.h"
 #include "skizzay/fsm/optional_reference.h"
 #include "skizzay/fsm/reenter.h"
 #include "skizzay/fsm/state.h"

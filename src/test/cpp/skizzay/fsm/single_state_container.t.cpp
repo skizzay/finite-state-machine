@@ -340,3 +340,35 @@ SCENARIO("single state container state examining",
     }
   }
 }
+
+SCENARIO("single state container querying",
+         "[unit][state-container][single-state-container]") {
+  using target_type = single_state<test_state_type>;
+
+  GIVEN("an active single state container") {
+    target_type target;
+    test_objects::fake_entry_context<initial_entry_event_t,
+                                     states_list<test_state_type>,
+                                     test_objects::test_events_list<num_events>>
+        initial_entry_context;
+    target.on_entry(initial_entry_context);
+
+    WHEN("queried that is done after visitation") {
+      test_objects::test_query<1> query{0};
+      bool const is_done = target.query(query);
+
+      THEN("the result is done") { REQUIRE(is_done); }
+
+      THEN("the state was queried") { REQUIRE(1 == query.states_queried[0]); }
+    }
+
+    WHEN("queried that is not done after visitation") {
+      test_objects::test_query<1> query;
+      bool const is_done = target.query(query);
+
+      THEN("the result is not done") { REQUIRE_FALSE(is_done); }
+
+      THEN("the state was queried") { REQUIRE(1 == query.states_queried[0]); }
+    }
+  }
+}

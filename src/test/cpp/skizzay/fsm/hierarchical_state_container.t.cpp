@@ -12,10 +12,13 @@
 using namespace skizzay::fsm;
 
 constexpr std::size_t num_events = 4;
+constexpr std::size_t parent_id = 0;
+constexpr std::size_t child_id = 1;
+constexpr std::size_t external_id = 2;
 
-using parent_state_type = test_objects::test_state<0, num_events>;
-using child_state_type = test_objects::test_state<1, num_events>;
-using external_state_type = test_objects::test_state<2, num_events>;
+using parent_state_type = test_objects::test_state<parent_id, num_events>;
+using child_state_type = test_objects::test_state<child_id, num_events>;
+using external_state_type = test_objects::test_state<external_id, num_events>;
 using target_type =
     hierarchical_states<parent_state_type, single_state<child_state_type>>;
 
@@ -665,6 +668,65 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
                              .initial_entry_count);
           }
         }
+      }
+    }
+  }
+}
+
+SCENARIO("hierarchical state container querying",
+         "[unit][state-container][single-state-container]") {
+  GIVEN("a hierarchical single state container") {
+    target_type target;
+    test_objects::fake_entry_context<
+        initial_entry_event_t, test_objects::test_states_list<num_events, 2>,
+        test_objects::test_events_list<num_events>>
+        initial_entry_context;
+    target.on_entry(initial_entry_context);
+
+    WHEN("queried that is done after visiting parent") {
+      test_objects::test_query<length_v<states_list_t<target_type>>> query{
+          parent_id};
+      bool const is_done = target.query(query);
+
+      THEN("the result is done") { REQUIRE(is_done); }
+
+      THEN("the parent state was queried") {
+        REQUIRE(1 == query.states_queried[parent_id]);
+      }
+
+      THEN("the child state was not queried") {
+        REQUIRE(0 == query.states_queried[child_id]);
+      }
+    }
+
+    WHEN("queried that is done after visiting child") {
+      test_objects::test_query<length_v<states_list_t<target_type>>> query{
+          child_id};
+      bool const is_done = target.query(query);
+
+      THEN("the result is done") { REQUIRE(is_done); }
+
+      THEN("the parent state was queried") {
+        REQUIRE(1 == query.states_queried[parent_id]);
+      }
+
+      THEN("the child state was queried") {
+        REQUIRE(1 == query.states_queried[child_id]);
+      }
+    }
+
+    WHEN("queried that is not done after visitation") {
+      test_objects::test_query<length_v<states_list_t<target_type>>> query;
+      bool const is_done = target.query(query);
+
+      THEN("the result is not done") { REQUIRE_FALSE(is_done); }
+
+      THEN("the parent state was queried") {
+        REQUIRE(1 == query.states_queried[parent_id]);
+      }
+
+      THEN("the child state was queried") {
+        REQUIRE(1 == query.states_queried[child_id]);
       }
     }
   }
