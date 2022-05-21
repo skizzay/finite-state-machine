@@ -8,7 +8,9 @@
 #include "skizzay/fsm/simple_transition.h"
 #include "skizzay/fsm/state_accessible.h"
 #include "skizzay/fsm/state_provider.h"
+#include "skizzay/fsm/state_schedule.h"
 #include "skizzay/fsm/states_list.h"
+#include "skizzay/fsm/transition_table.h"
 #include "skizzay/fsm/type_list.h"
 
 #include <tuple>
@@ -39,6 +41,9 @@ struct fake_event_transition_context {
   constexpr State const &state() const noexcept {
     return s;
   }
+
+  constexpr void on_transition(
+      concepts::transition_in<transition_table_type> auto &) noexcept {}
 
   constexpr void
   post_event(concepts::event_in<events_list_type> auto const &) noexcept {}
@@ -97,28 +102,30 @@ concept state_container = state_accessible<T> &&
   noexcept->concepts::boolean;
   t.on_entry(fec);
   { t.on_event(fetc) } -> concepts::boolean;
+  { tc.query(no_op(true)) } -> concepts::boolean;
 };
 } // namespace concepts
 
 template <typename T>
 using is_state_container = std::bool_constant<concepts::state_container<T>>;
 
-template <concepts::entry_context EntryContext,
+template <concepts::state_schedule StateSchedule,
           concepts::state_container StateContainer>
 using candidate_states_list_t = intersection_of_t<
-    as_container_t<next_states_list_t<EntryContext>, states_list>,
+    as_container_t<next_states_list_t<StateSchedule>, states_list>,
     as_container_t<states_list_t<StateContainer>, states_list>>;
 
-template <concepts::entry_context EntryContext,
+template <concepts::state_schedule StateSchedule,
           concepts::state_container StateContainer>
-constexpr bool has_state_scheduled_for_entry(EntryContext const &entry_context,
-                                             StateContainer const &) noexcept {
+constexpr bool
+has_state_scheduled_for_entry(StateSchedule const &state_schedule,
+                              StateContainer const &) noexcept {
   return []<concepts::state... States>(
-             EntryContext const &entry_context,
+             StateSchedule const &state_schedule,
              states_list<States...> const) noexcept->bool {
-    return (entry_context.template is_scheduled<States>() || ...);
+    return (state_schedule.template is_scheduled<States>() || ...);
   }
-  (entry_context, candidate_states_list_t<EntryContext, StateContainer>{});
+  (state_schedule, candidate_states_list_t<StateSchedule, StateContainer>{});
 }
 
 namespace execute_intial_entry_details_ {

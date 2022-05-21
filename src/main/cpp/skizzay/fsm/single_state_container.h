@@ -25,6 +25,10 @@ requires(!concepts::state_container<State>) struct single_state<State>
                               State>::basic_state_container;
 };
 
+template <concepts::state State> struct basic_state_t<single_state<State>> {
+  using type = State;
+};
+
 template <concepts::state State>
 single_state(State &&) -> single_state<std::remove_cvref_t<State>>;
 } // namespace skizzay::fsm

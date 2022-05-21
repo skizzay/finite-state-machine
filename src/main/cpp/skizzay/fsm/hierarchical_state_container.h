@@ -216,6 +216,12 @@ public:
 };
 } // namespace hierarchical_state_container_details_
 
+template <concepts::state State>
+struct basic_state_t<
+    hierarchical_state_container_details_::parent_state_container<State>> {
+  using type = State;
+};
+
 template <concepts::state ParentState,
           concepts::state_container ChildStateContainer>
 using hierarchical_states =

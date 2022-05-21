@@ -50,6 +50,7 @@ template <typename T>
 concept event_transition_context =
     std::move_constructible<T> && event_context<T> && requires {
   typename transition_table_t<T>;
+  typename current_states_list_t<T>;
 } && all_v<current_states_list_t<T>,
            curry<is_event_transition_context_details_::
                      has_get_transitions_template_member_function,
@@ -58,9 +59,7 @@ concept event_transition_context =
             curry<is_event_transition_context_details_::
                       has_schedule_entry_template_member_function,
                   T>::template type>
-        &&all_v<filter_t<map_t<transition_table_t<T>, std::remove_cvref_t>,
-                         curry<std::is_convertible,
-                               add_cref_t<event_t<T>>>::template type>,
+        &&all_v<map_t<transition_table_t<T>, std::remove_cvref_t>,
                 curry<is_event_transition_context_details_::
                           has_on_transition_template_member_function,
                       T>::template type>;

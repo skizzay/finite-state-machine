@@ -40,7 +40,7 @@ struct has_query_template_member_function : std::false_type {};
 
 template <typename T>
 requires requires(T const &tc) {
-  { tc.query(no_op(true)) } -> concepts::boolean;
+  { tc.query(no_op(true)) };
 }
 struct has_query_template_member_function<T> : std::true_type {};
 } // namespace state_queryable_details_

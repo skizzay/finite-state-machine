@@ -8,23 +8,21 @@
 
 namespace skizzay::fsm {
 namespace event_engine_details_ {
-template <typename> struct template_member_function {
-  template <typename> struct post_event : std::false_type {};
-};
+template <typename, typename>
+struct has_post_event_template_member_function : std::false_type {};
 
-template <typename T> template <typename Event>
-requires concepts::event<Event> && requires(T &t, Event const &event) {
-  t.post_event(event);
-}
-struct template_member_function<T>::post_event<Event> : std::true_type {};
+template <typename T, concepts::event Event>
+requires requires(T &t, Event &&event) { t.post_event((Event &&) event); }
+struct has_post_event_template_member_function<T, Event> : std::true_type {};
 } // namespace event_engine_details_
 
 namespace concepts {
 template <typename T, typename... Events>
-concept event_engine_for = (event<Events> && ...) &&
-                           (event_engine_details_::template_member_function<
-                                T>::template post_event<Events>::value &&
-                            ...);
+concept event_engine_for =
+    (event<Events> && ...) &&
+    (event_engine_details_::has_post_event_template_member_function<
+         T, Events>::value &&
+     ...);
 
 template <typename T>
 concept event_engine = requires {
@@ -32,7 +30,8 @@ concept event_engine = requires {
 }
 &&(!empty_v<events_list_t<T>>)&&all_v<
     events_list_t<T>,
-    event_engine_details_::template_member_function<T>::template post_event>;
+    curry<event_engine_details_::has_post_event_template_member_function,
+          T>::template type>;
 } // namespace concepts
 
 template <typename T>

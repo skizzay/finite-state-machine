@@ -3,6 +3,7 @@
 #include "skizzay/fsm/boolean.h"
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/event_context.h"
+#include "skizzay/fsm/state_schedule.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/transition_table.h"
 
@@ -10,27 +11,9 @@
 
 namespace skizzay::fsm {
 
-namespace is_entry_context_details_ {
-template <typename T> struct template_member_function {
-  template <typename> struct is_scheduled : std::false_type {};
-};
-
-template <typename T> template <typename State>
-requires concepts::state_in<State, next_states_list_t<T>> &&
-    requires(T const &tc) {
-  { tc.template is_scheduled<State>() }
-  noexcept->concepts::boolean;
-}
-struct template_member_function<T>::is_scheduled<State> : std::true_type {};
-} // namespace is_entry_context_details_
-
 namespace concepts {
 template <typename T>
-concept entry_context = event_context<T> && requires {
-  typename next_states_list_t<T>;
-} && all_v<next_states_list_t<T>,
-           is_entry_context_details_::template_member_function<
-               T>::template is_scheduled>;
+concept entry_context = event_context<T> && state_schedule<T>;
 
 template <typename T>
 concept initial_entry_context =

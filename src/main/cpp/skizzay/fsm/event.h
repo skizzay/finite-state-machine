@@ -2,12 +2,15 @@
 
 #include "skizzay/fsm/detected.h"
 #include "skizzay/fsm/nonvoid.h"
+
+#include <concepts>
 #include <type_traits>
 
 namespace skizzay::fsm {
 namespace concepts {
 template <typename T>
-concept event = nonvoid<std::remove_cvref_t<T>> &&
+concept event =
+    nonvoid<std::remove_cvref_t<T>> && std::movable<std::remove_cvref_t<T>> &&
     std::negation_v<std::is_pointer<std::remove_cvref_t<T>>> &&
     std::negation_v<std::is_same<nonesuch, std::decay_t<T>>>;
 } // namespace concepts

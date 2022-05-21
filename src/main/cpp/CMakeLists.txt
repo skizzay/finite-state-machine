@@ -8,7 +8,9 @@ target_sources(fsm INTERFACE
    skizzay/fsm/basic_state_container.h
    skizzay/fsm/boolean.h
    skizzay/fsm/entry_context.h
+   skizzay/fsm/entry_state_scheduler.h
    skizzay/fsm/event.h
+   skizzay/fsm/event_context_node.h
    skizzay/fsm/event_context.h
    skizzay/fsm/event_engine.h
    skizzay/fsm/event_handler.h

@@ -99,19 +99,19 @@ struct basic_states_list_t<TransitionTable> {
                                  next_states_list_t<TransitionTable>>>;
 };
 
-namespace transition_table_details_ {
-template <concepts::event Event> struct has_event {
-  template <concepts::transition Transition>
-  using test = std::is_convertible<Event const &,
-                                   typename Transition::event_type const &>;
+template <concepts::state State, concepts::transition_table TransitionTable>
+requires contains_v<current_states_list_t<TransitionTable>, State> ||
+    contains_v<next_states_list_t<TransitionTable>, State>
+struct is_state_in<State, TransitionTable> : std::true_type {
 };
 
+namespace transition_table_details_ {
 template <concepts::event Event, concepts::state State>
 struct has_current_state {
   template <concepts::transition Transition>
   using test = std::conjunction<
       std::is_same<State, typename Transition::current_state_type>,
-      typename has_event<Event>::template test<Transition>>;
+      is_event_in<Event, Transition>>;
 };
 
 template <typename State, typename TransitionTable, typename Event>
@@ -123,11 +123,21 @@ concept current_state_in =
 
 template <concepts::event Event, concepts::transition_table TransitionTable>
 struct is_event_in<Event, TransitionTable>
-    : any<TransitionTable,
-          transition_table_details_::has_event<Event>::template test> {};
+    : any<TransitionTable, curry<is_event_in, Event>::template type> {};
+
+template <concepts::event Event, typename T>
+requires requires { typename transition_table_t<T>; }
+struct is_event_in<Event, T> : is_event_in<Event, transition_table_t<T>> {};
 
 template <concepts::transition_table T> struct basic_events_list_t<T> {
   using type = extract_transition_t_details_::impl<T, event_t, events_list>;
+};
+
+template <typename T>
+requires requires {
+  typename transition_table_t<T>;
+} &&(!requires { typename T::events_list_type; }) struct basic_events_list_t<T>
+    : basic_events_list_t<transition_table_t<T>> {
 };
 
 template <

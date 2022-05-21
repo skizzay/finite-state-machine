@@ -175,6 +175,8 @@ struct valid_event_transition_context {
     return s;
   }
 
+  constexpr void on_transition(concepts::transition_in<transition_table_type> auto &) {}
+
   constexpr void
   post_event(concepts::event_in<events_list_type> auto const &) noexcept {}
 

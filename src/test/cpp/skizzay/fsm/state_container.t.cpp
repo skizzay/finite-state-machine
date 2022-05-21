@@ -207,6 +207,54 @@ TEST_CASE("missing is inactive member function is not a state container",
 
 TEST_CASE("valid state container is a state container",
           "[unit][state_container]") {
+  REQUIRE(std::move_constructible<
+          is_state_container_details_::fake_event_transition_context>);
+  REQUIRE(concepts::event_context<
+          is_state_container_details_::fake_event_transition_context>);
+  REQUIRE(concepts::transition_table<transition_table_t<
+              is_state_container_details_::fake_event_transition_context>>);
+  REQUIRE(concepts::states_list<current_states_list_t<
+              is_state_container_details_::fake_event_transition_context>>);
+  REQUIRE(
+      all_v<current_states_list_t<
+                is_state_container_details_::fake_event_transition_context>,
+            curry<is_event_transition_context_details_::
+                      has_get_transitions_template_member_function,
+                  is_state_container_details_::fake_event_transition_context>::
+                template type>);
+  REQUIRE(
+      all_v<current_states_list_t<
+                is_state_container_details_::fake_event_transition_context>,
+            curry<is_event_transition_context_details_::
+                      has_schedule_entry_template_member_function,
+                  is_state_container_details_::fake_event_transition_context>::
+                template type>);
+  using event_type =
+      is_state_container_details_::fake_event_transition_context::event_type;
+  using state_type =
+      is_state_container_details_::fake_event_transition_context::state_type;
+
+  REQUIRE(is_event_transition_context_details_::has_on_transition_template_member_function<is_state_container_details_::fake_event_transition_context, simple_transition<state_type, state_type, event_type>>::value);
+  REQUIRE(length_v<current_states_list_t<
+              is_state_container_details_::fake_event_transition_context>> == 1);
+  REQUIRE(std::same_as<
+          state_type,
+          front_t<current_states_list_t<
+              is_state_container_details_::fake_event_transition_context>>>);
+
+  REQUIRE(is_event_transition_context_details_::
+              has_on_transition_template_member_function<
+                  is_state_container_details_::fake_event_transition_context,
+                  simple_transition<state_type, state_type, event_type>>::
+                  value);
+  REQUIRE(all_v<
+          map_t<transition_table_t<
+                    is_state_container_details_::fake_event_transition_context>,
+                std::remove_cvref_t>,
+          curry<is_event_transition_context_details_::
+                    has_on_transition_template_member_function,
+                is_state_container_details_::fake_event_transition_context>::
+              template type>);
   REQUIRE(concepts::event_transition_context<
           is_state_container_details_::fake_event_transition_context>);
   REQUIRE(concepts::state_container<valid_state_container>);

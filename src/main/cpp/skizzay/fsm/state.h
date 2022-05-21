@@ -20,8 +20,16 @@ template <typename> struct basic_state_t;
 namespace state_t_details_ {
 template <typename> struct impl;
 
+template<typename T>
+requires requires {
+  typename T::state_type;
+} && concepts::state<typename T::state_type>
+struct impl<T> : std::true_type {};
+
 template <typename T>
-requires concepts::state<typename basic_state_t<T>::type>
+requires concepts::state<typename basic_state_t<T>::type> && (!requires {
+  typename T::state_type;
+})
 struct impl<T> {
   using type = typename basic_state_t<T>::type;
 };
@@ -42,12 +50,6 @@ struct next_state_t_impl<T> {
 } // namespace state_t_details_
 
 template <typename T> using state_t = typename state_t_details_::impl<T>::type;
-
-template <typename T>
-requires concepts::state<typename T::state_type>
-struct basic_state_t<T> {
-  using type = typename T::state_type;
-};
 
 template <typename T>
 using current_state_t =

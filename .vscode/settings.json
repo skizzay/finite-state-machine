@@ -65,7 +65,9 @@
       "mutex": "cpp",
       "thread": "cpp",
       "shared_mutex": "cpp",
-      "semaphore": "cpp"
+      "semaphore": "cpp",
+      "cassert": "cpp",
+      "cfenv": "cpp"
    },
    "cmake.configureSettings": {
       "CMAKE_TOOLCHAIN_FILE": "/home/andrew/Documents/vcpkg/scripts/buildsystems/vcpkg.cmake"
