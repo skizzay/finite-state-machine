@@ -23,7 +23,8 @@ concept event_in = is_event_in<Event, EventsList>::value;
 } // namespace concepts
 
 template <concepts::event Event, concepts::events_list EventsList>
-requires contains_v<EventsList, Event>
+requires contains_v<map_t<EventsList, std::remove_cvref_t>,
+                    std::remove_cvref_t<Event>>
 struct is_event_in<Event, EventsList> : std::true_type {
 };
 

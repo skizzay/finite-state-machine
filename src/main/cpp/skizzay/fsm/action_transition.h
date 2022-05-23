@@ -1,8 +1,12 @@
 #pragma once
 
+#include "skizzay/fsm/const_ref.h"
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/event_triggered_context.h"
+#include "skizzay/fsm/state.h"
+
 #include <concepts>
 #include <functional>
-#include <skizzay/fsm/concepts.h>
 #include <type_traits>
 #include <utility>
 
@@ -10,40 +14,86 @@ namespace skizzay::fsm {
 
 namespace action_transition_details_ {
 
-template <typename, typename, typename, typename> struct impl;
-
-template <concepts::state CurrentState, concepts::state NextState,
-          concepts::event Event, std::invocable<Event const &> Action>
-struct impl<CurrentState, NextState, Event, Action> {
-  using current_state_type = CurrentState;
-  using next_state_type = NextState;
-  using event_type = Event;
-
-  constexpr explicit impl(Action action) noexcept(
-      std::is_nothrow_move_constructible_v<Action>)
-      : action_{std::move_if_noexcept(action)} {}
-
-  template <concepts::machine_for<
-      impl<current_state_type, next_state_type, event_type, Action>>
-                Machine>
-  constexpr bool accepts(current_state_type const &current_state,
-                         Machine const &machine,
-                         event_type const &event) const noexcept {
-    return true;
-  }
-
-  constexpr void on_triggered(Event const &event) noexcept(
-      std::is_nothrow_invocable_v<Action, Event const &>) {
-    std::invoke(action_, event);
-  }
-
-private:
-  [[no_unique_address]] Action action_;
+template <concepts::event Event> struct fake_event_triggered_context {
+  using events_list_type = events_list<std::remove_cvref_t<Event>>;
+  add_cref_t<Event> event() const noexcept;
+  constexpr void post_event(concepts::event auto &&) noexcept {}
 };
 } // namespace action_transition_details_
 
 template <concepts::state CurrentState, concepts::state NextState,
-          concepts::event Event, std::invocable<Event const &> Action>
-using action_transition =
-    action_transition_details_::impl<CurrentState, NextState, Event, Action>;
+          concepts::event Event, typename Action>
+requires std::invocable<Action, add_cref_t<Event>> ||
+    std::invocable<Action,
+                   std::add_lvalue_reference_t<
+                       action_transition_details_::fake_event_triggered_context<
+                           std::remove_cvref_t<Event>>>> ||
+    std::invocable<Action>
+struct action_transition {
+  using current_state_type = std::remove_cvref_t<CurrentState>;
+  using next_state_type = std::remove_cvref_t<NextState>;
+  using event_type = std::remove_cvref_t<Event>;
+
+  constexpr explicit action_transition(Action action) noexcept(
+      std::is_nothrow_move_constructible_v<Action>)
+      : action_{std::move_if_noexcept(action)} {}
+
+  constexpr void on_triggered(event_type const &event) noexcept(
+      std::is_nothrow_invocable_v<Action, Event const &>) requires
+      std::invocable<Action, add_cref_t<event_type>> {
+    std::invoke(action_, event);
+  }
+
+  template <concepts::event_triggered_context_for<event_type> EventContext>
+  constexpr void on_triggered(EventContext &event_context) noexcept(
+      std::is_nothrow_invocable_v<Action, EventContext &>) requires
+      std::invocable<Action, EventContext &> {
+    std::invoke(action_, event_context);
+  }
+
+  template <concepts::event_triggered_context_for<event_type> EventContext>
+  constexpr void on_triggered(EventContext &) noexcept(
+      std::is_nothrow_invocable_v<
+          Action, EventContext &>) requires(std::invocable<Action> &&
+                                            !std::invocable<Action,
+                                                            EventContext &>) {
+    std::invoke(action_);
+  }
+
+private : [[no_unique_address]] Action action_;
+};
+
+template <concepts::state CurrentState, concepts::state NextState,
+          concepts::event Event,
+          std::invocable<std::add_lvalue_reference_t<
+              action_transition_details_::fake_event_triggered_context<
+                  std::remove_cvref_t<Event>>>>
+              Action>
+constexpr action_transition<CurrentState, NextState, Event, Action>
+action_transition_for(Action &&action) noexcept(
+    std::is_nothrow_constructible_v<
+        action_transition<CurrentState, NextState, Event, Action>>) {
+  return action_transition<CurrentState, NextState, Event, Action>{
+      std::forward<Action>(action)};
+}
+
+template <concepts::state CurrentState, concepts::state NextState,
+          concepts::event Event, std::invocable<add_cref_t<Event>> Action>
+constexpr action_transition<CurrentState, NextState, Event, Action>
+action_transition_for(Action &&action) noexcept(
+    std::is_nothrow_constructible_v<
+        action_transition<CurrentState, NextState, Event, Action>>) {
+  return action_transition<CurrentState, NextState, Event, Action>{
+      std::forward<Action>(action)};
+}
+
+template <concepts::state CurrentState, concepts::state NextState,
+          concepts::event Event, std::invocable Action>
+constexpr action_transition<CurrentState, NextState, Event, Action>
+action_transition_for(Action &&action) noexcept(
+    std::is_nothrow_constructible_v<
+        action_transition<CurrentState, NextState, Event, Action>>) {
+  return action_transition<CurrentState, NextState, Event, Action>{
+      std::forward<Action>(action)};
+}
 } // namespace skizzay::fsm

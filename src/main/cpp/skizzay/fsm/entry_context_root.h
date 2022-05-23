@@ -1,5 +1,6 @@
 #pragma once
 
+#include "skizzay/fsm/const_ref.h"
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/event_engine.h"
 #include "skizzay/fsm/events_list.h"
@@ -18,7 +19,7 @@ struct entry_context_root {
   using states_list_type = states_list_t<StateProvider>;
   using next_states_list_type = next_states_list_t<StateSchedule>;
 
-  constexpr explicit entry_context_root(event_type const &event,
+  constexpr explicit entry_context_root(Event const &event,
                                         EventEngine &event_engine,
                                         StateProvider &state_provider,
                                         StateSchedule &state_schedule) noexcept
@@ -53,13 +54,4 @@ private:
   StateProvider &state_provider_;
   StateSchedule &state_schedule_;
 };
-
-template <concepts::event Event, concepts::event_engine EventEngine,
-          concepts::state_provider StateProvider,
-          concepts::state_schedule StateSchedule>
-entry_context_root(Event const &event, EventEngine &event_engine,
-                   StateProvider &state_provider, StateSchedule &state_schedule)
-    -> entry_context_root<
-        std::remove_cvref_t<Event>, std::remove_cvref_t<EventEngine>,
-        std::remove_cvref_t<StateProvider>, std::remove_cvref_t<StateSchedule>>;
 } // namespace skizzay::fsm

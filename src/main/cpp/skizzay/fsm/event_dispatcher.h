@@ -77,9 +77,9 @@ private:
     event_context_root event_context{event, *this, root_state_container_,
                                      transition_table_, scheduler};
     if (root_state_container_.on_event(event_context)) {
-      // entry_context_root entry_context{event, *this, root_state_container_,
-      //                                  scheduler};
-      // root_state_container_.on_entry(entry_context);
+      entry_context_root entry_context{event, *this, root_state_container_,
+                                       scheduler};
+      root_state_container_.on_entry(entry_context);
       return true;
     } else {
       return false;

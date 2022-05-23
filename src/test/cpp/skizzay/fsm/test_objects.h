@@ -28,6 +28,7 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
   std::size_t initial_entry_count = 0;
   std::size_t final_exit_count = 0;
   std::size_t epsilon_event_entry_count = 0;
+  std::size_t epsilon_event_reentry_count = 0;
   std::size_t epsilon_event_exit_count = 0;
   std::array<std::size_t, NumEvents> event_entry_count;
   std::array<std::size_t, NumEvents> event_reentry_count;
@@ -78,6 +79,9 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
 
   template <std::size_t I> void on_reentry(test_event<I> const &) noexcept {
     event_reentry_count[I] += 1;
+  }
+  void on_reentry(skizzay::fsm::epsilon_event_t const) noexcept {
+    epsilon_event_reentry_count += 1;
   }
 
   template <std::size_t I>

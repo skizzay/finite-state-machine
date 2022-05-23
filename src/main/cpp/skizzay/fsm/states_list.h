@@ -25,7 +25,7 @@ concept state_in = is_state_in<State, StatesList>::value;
 } // namespace concepts
 
 template <concepts::state State, concepts::states_list StatesList>
-struct is_state_in<State, StatesList> : contains<StatesList, State> {};
+struct is_state_in<State, StatesList> : contains<map_t<StatesList, std::remove_cvref_t>, std::remove_cvref_t<State>> {};
 
 template <typename> struct basic_states_list_t;
 
