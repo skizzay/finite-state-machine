@@ -47,7 +47,9 @@ struct has_query_template_member_function<T> : std::true_type {};
 
 namespace concepts {
 template <typename T>
-concept state_queryable = query_result_details_::has_states_list_t<T> &&
+concept state_queryable = requires {
+  typename states_list_t<T>;
+} &&
     state_queryable_details_::has_query_template_member_function<T>::value &&
     (!empty_v<states_list_t<T>>)&&all_v<
         states_list_t<T>, curry<state_queryable_details_::

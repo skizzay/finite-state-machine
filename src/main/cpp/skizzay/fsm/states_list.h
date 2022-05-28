@@ -89,4 +89,12 @@ requires concepts::states_list<typename basic_next_states_list_t<T>::type> &&
 
 template <typename T>
 using next_states_list_t = typename next_states_list_t_details_::impl<T>::type;
+
+template <typename T>
+requires(!requires { typename T::states_list_type; }) && requires {
+  typename current_states_list_t<T>;
+  typename next_states_list_t<T>;
+}
+struct basic_states_list_t<T>
+    : unique<concat_t<current_states_list_t<T>, next_states_list_t<T>>> {};
 } // namespace skizzay::fsm

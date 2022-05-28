@@ -19,7 +19,7 @@ concept transition_table = is_transition_table<T>::value;
 template <typename Transition, typename TransitionTable>
 concept transition_in = transition<std::remove_cvref_t<Transition>> &&
     transition_table<TransitionTable> &&
-    contains_v<TransitionTable, Transition>;
+    contains_v<map_t<TransitionTable, std::remove_cvref_t>, Transition>;
 
 template <typename Transition, typename TransitionTable>
 concept self_transition_in =
@@ -93,32 +93,23 @@ requires requires { typename transition_table_t<T>; }
 struct basic_next_states_list_t<T>
     : basic_next_states_list_t<transition_table_t<T>> {};
 
-template <concepts::transition_table TransitionTable>
-struct basic_states_list_t<TransitionTable> {
-  using type = unique_t<concat_t<current_states_list_t<TransitionTable>,
-                                 next_states_list_t<TransitionTable>>>;
-};
-
 template <concepts::state State, concepts::transition_table TransitionTable>
-requires contains_v<current_states_list_t<TransitionTable>, State> ||
-    contains_v<next_states_list_t<TransitionTable>, State>
-struct is_state_in<State, TransitionTable> : std::true_type {
+struct is_state_in<State, TransitionTable> : contains<states_list_t<TransitionTable>, State> {
 };
 
 namespace transition_table_details_ {
-template <concepts::event Event, concepts::state State>
-struct has_current_state {
-  template <concepts::transition Transition>
-  using test = std::conjunction<
-      std::is_same<State, typename Transition::current_state_type>,
-      is_event_in<Event, Transition>>;
-};
+template <concepts::event Event, concepts::state State,
+          concepts::transition Transition>
+struct has_current_state
+    : std::conjunction<std::is_same<State, current_state_t<Transition>>,
+                       is_event_in<Event, Transition>> {};
 
 template <typename State, typename TransitionTable, typename Event>
 concept current_state_in =
     concepts::state<State> && concepts::transition_table<TransitionTable> &&
     concepts::event_in<Event, TransitionTable> &&
-    any_v<TransitionTable, has_current_state<Event, State>::template test>;
+    any_v<TransitionTable,
+          curry<has_current_state, Event, State>::template type>;
 } // namespace transition_table_details_
 
 template <concepts::event Event, concepts::transition_table TransitionTable>
@@ -148,8 +139,9 @@ constexpr concepts::transition_table auto
 get_transition_table_for_current_state(TransitionTable &transition_table,
                                        Event const &, State const &) noexcept {
   using candidate_transitions_list_type = as_container_t<
-      filter_t<TransitionTable, transition_table_details_::has_current_state<
-                                    Event, State>::template test>,
+      filter_t<TransitionTable,
+               curry<transition_table_details_::has_current_state, Event,
+                     State>::template type>,
       simple_type_list>;
 
   return []<concepts::transition... Transitions>(

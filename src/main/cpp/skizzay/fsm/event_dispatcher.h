@@ -18,6 +18,63 @@ namespace event_dispatcher_details_ {
 struct ignore_flag final {
   constexpr inline ignore_flag(bool const) noexcept {}
 };
+
+template <concepts::event Event> struct event_provider {
+  static constexpr Event const &get() noexcept;
+};
+
+template <>
+constexpr initial_entry_event_t const &
+event_provider<initial_entry_event_t>::get() noexcept {
+  return initial_entry_event;
+}
+
+template <>
+constexpr final_exit_event_t const &
+event_provider<final_exit_event_t>::get() noexcept {
+  return final_exit_event;
+}
+
+template <concepts::state_provider StateProvider,
+          concepts::event_engine EventEngine, concepts::event Event>
+struct context_wrapper {
+  using event_type = std::remove_cvref_t<Event>;
+  using events_list_type = events_list_t<EventEngine>;
+  using states_list_type = states_list_t<StateProvider>;
+  using transition_table_type = std::tuple<>;
+
+  constexpr explicit context_wrapper(StateProvider &state_provider,
+                                     EventEngine &event_engine) noexcept
+      : state_provider_{state_provider}, event_engine_{event_engine} {}
+
+  constexpr event_type const &event() const noexcept {
+    return event_provider<event_type>::get();
+  }
+
+  template <concepts::state_in<states_list_type> State>
+  constexpr State &state() noexcept {
+    return state_provider_.template state<State>();
+  }
+
+  template <concepts::state_in<states_list_type> State>
+  constexpr State const &state() const noexcept {
+    return state_provider_.template state<State>();
+  }
+
+  constexpr void
+  post_event(concepts::event_in<events_list_type> auto const &event) {
+    event_engine_.post_event(event);
+  }
+
+  constexpr std::tuple<>
+  get_transitions(concepts::state auto const &) noexcept {
+    return {};
+  }
+
+private:
+  StateProvider &state_provider_;
+  EventEngine &event_engine_;
+};
 } // namespace event_dispatcher_details_
 
 template <concepts::transition_table TransitionTable,
@@ -63,7 +120,26 @@ private:
       event_dispatcher_details_::ignore_flag>
       accept_epsilon_events_;
 
-  template <concepts::event_in<transition_table_type> Event>
+  constexpr bool process_event(initial_entry_event_t const &) {
+    event_dispatcher_details_::context_wrapper<
+        RootStateContainer, std::remove_reference_t<decltype(*this)>,
+        initial_entry_event_t>
+        context_wrapper{root_state_container_, *this};
+    execute_initial_entry(context_wrapper, root_state_container_);
+    return true;
+  }
+
+  constexpr bool process_event(final_exit_event_t const &) {
+    event_dispatcher_details_::context_wrapper<
+        RootStateContainer, std::remove_reference_t<decltype(*this)>,
+        final_exit_event_t>
+        context_wrapper{root_state_container_, *this};
+    return std::get<bool>(
+        execute_final_exit(context_wrapper, root_state_container_));
+  }
+
+  template <concepts::event Event>
+  requires concepts::event_in<Event, transition_table_type>
   constexpr bool process_event(Event const &event) {
     using next_states_list_type =
         as_container_t<map_t<filter_t<transition_table_type,
