@@ -1,7 +1,6 @@
 #pragma once
 
 #include "skizzay/fsm/event.h"
-#include "skizzay/fsm/event_triggered_context.h"
 #include "skizzay/fsm/transition.h"
 #include "skizzay/fsm/types.h"
 
@@ -36,18 +35,14 @@ struct trigger_fn final {
   }
 
   template <concepts::transition Transition>
-  requires requires(event_t<Transition> const &ec) {
-    ec.on_triggered();
-  }
+  requires requires(event_t<Transition> const &ec) { ec.on_triggered(); }
   constexpr void operator()(Transition &,
                             event_t<Transition> const &event) const {
     event.on_triggered();
   }
 
   template <concepts::transition Transition>
-  requires requires(event_t<Transition> const &ec) {
-    on_triggered(ec);
-  }
+  requires requires(event_t<Transition> const &ec) { on_triggered(ec); }
   constexpr void operator()(Transition &,
                             event_t<Transition> const &event) const {
     on_triggered(event);

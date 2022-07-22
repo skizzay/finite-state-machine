@@ -1,12 +1,17 @@
 #pragma once
 
+#include "skizzay/fsm/entry_state_scheduler.h"
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/events_list.h"
+#include "skizzay/fsm/internal_event_engine.h"
 #include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/state_scheduler.h"
 #include "skizzay/fsm/states_list.h"
+#include "skizzay/fsm/task_queue.h"
 #include "skizzay/fsm/transition_table.h"
 #include "skizzay/fsm/type_list.h"
 
+#include <cassert>
 #include <type_traits>
 
 namespace skizzay::fsm {
@@ -50,14 +55,14 @@ struct local_event_transition_context {
   }
 
   constexpr concepts::transition_table auto get_transitions(
-      concepts::state_in<current_states_list_t<TransitionTable>> const
+      concepts::state_in<current_states_list_t<TransitionTable>> auto const
           &state) noexcept {
     return get_transition_table_for(transition_table_, state);
   }
 
   template <concepts::state_in<next_states_list_type> State>
   constexpr void schedule_entry() noexcept {
-    state_scheduler_.template schedule_entry<next_state_t<Transition>>();
+    state_scheduler_.template schedule_entry<State>();
   }
 
 private:
@@ -67,15 +72,16 @@ private:
 
 template <concepts::state MachineState,
           concepts::state_scheduler InternalStateScheduler,
-          concepts::state_scheduler ExternalStateScheduler>
+          concepts::event_transition_context ExternalEventTransitionContext>
 struct local_state_scheduler {
   using next_states_list_type = next_states_list_t<InternalStateScheduler>;
 
   constexpr explicit local_state_scheduler(
       InternalStateScheduler &internal_state_scheduler,
-      ExternalStateScheduler &external_state_scheduler) noexcept
+      ExternalEventTransitionContext
+          &external_event_transition_context) noexcept
       : internal_state_scheduler_{internal_state_scheduler},
-        external_state_scheduler_{external_state_scheduler} {}
+        external_event_transition_context_{external_event_transition_context} {}
 
   template <concepts::state_in<next_states_list_type> State>
   constexpr bool is_scheduled() const noexcept {
@@ -85,21 +91,22 @@ struct local_state_scheduler {
   template <concepts::state_in<next_states_list_type> State>
   constexpr void schedule_entry() noexcept {
     internal_state_scheduler_.template schedule_entry<State>();
-    external_state_scheduler_.template schedule_entry<MachineState>();
+    external_event_transition_context_.template schedule_entry<MachineState>();
   }
 
 private:
-  InternalStateScheduler &internal_state_scheduler;
-  ExternalStateScheduler &external_state_scheduler;
+  InternalStateScheduler &internal_state_scheduler_;
+  ExternalEventTransitionContext &external_event_transition_context_;
 };
 
-inline constexpr auto make_local_state_scheduler =
-    []<concepts::state MachineState>(
-        concepts::state_scheduler auto &internal_state_scheduler,
-        concepts::state_scheduler auto &external_state_scheduler) noexcept
+template <concepts::state MachineState>
+constexpr auto make_local_state_scheduler(
+    concepts::state_scheduler auto &internal_state_scheduler,
+    concepts::event_transition_context auto
+        &external_event_transition_context) noexcept
     -> local_state_scheduler<MachineState, decltype(internal_state_scheduler),
-                             decltype(external_state_scheduler)> {
-  return {internal_state_scheduler, external_state_scheduler};
+                             decltype(external_event_transition_context)> {
+  return {internal_state_scheduler, external_event_transition_context};
 }
 
 } // namespace machine_state_details_
@@ -108,11 +115,12 @@ template <
     concepts::root_transition_table RootTransitionTable,
     concepts::root_state_container<RootTransitionTable> RootStateContainer>
 struct machine_state<RootTransitionTable, RootStateContainer> {
-  using transition_table_type = TransitionTable;
+  using transition_table_type = RootTransitionTable;
   using states_list_type =
-      states_list_type<machine_state<RootStateContainer, TransitionTable>>;
+      states_list<machine_state<RootStateContainer, RootTransitionTable>>;
 
-  template <std::same_as<machine_state<RootStateContainer, TransitionTable>>>
+  template <
+      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
   constexpr bool is() const noexcept {
     return is_active();
   }
@@ -122,9 +130,10 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
     return root_state_container_.template is<State>();
   }
 
-  template <std::same_as<machine_state<RootStateContainer, TransitionTable>>>
+  template <
+      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
   constexpr optional_reference<
-      machine_state<RootStateContainer, TransitionTable> const>
+      machine_state<RootStateContainer, RootTransitionTable> const>
   current_state() const noexcept {
     return is_active() ? optional_reference{*this} : std::nullopt;
   }
@@ -134,8 +143,9 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
     return root_state_container_.template current_state<State>();
   }
 
-  template <std::same_as<machine_state<RootStateContainer, TransitionTable>>>
-  constexpr machine_state<RootStateContainer, TransitionTable> &
+  template <
+      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
+  constexpr machine_state<RootStateContainer, RootTransitionTable> &
   state() noexcept {
     return *this;
   }
@@ -145,8 +155,9 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
     return root_state_container_.template state<State>();
   }
 
-  template <std::same_as<machine_state<RootStateContainer, TransitionTable>>>
-  constexpr machine_state<RootStateContainer, TransitionTable> const &
+  template <
+      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
+  constexpr machine_state<RootStateContainer, RootTransitionTable> const &
   state() const noexcept {
     return *this;
   }
@@ -171,10 +182,11 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
   }
 
   template <
-      concepts::query<machine_state<RootStateContainer, TransitionTable>> Query>
+      concepts::query<machine_state<RootStateContainer, RootTransitionTable>>
+          Query>
   constexpr bool query(Query &&query) const
       noexcept(concepts::nothrow_query<
-               Query, machine_state<RootStateContainer, TransitionTable>>) {
+               Query, machine_state<RootStateContainer, RootTransitionTable>>) {
     assert(is_active() || "Trying to query an inactive machine state");
     std::invoke(std::forward<Query>(query), *this);
     return is_done(query);
@@ -209,8 +221,8 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
                                        q_};
     auto local_state_scheduler{
         machine_state_details_::make_local_state_scheduler<
-            machine_state<RootStateContainer, TransitionTable>>(
-            state_scheduler_, external_state_scheduler)};
+            machine_state<RootStateContainer, RootTransitionTable>>(
+            state_scheduler_, external_event_transition_context)};
     machine_state_details_::local_event_transition_context
         local_event_transition_context{
             local_state_scheduler,
@@ -224,7 +236,7 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
     } else {
       return attempt_transitions(external_event_transition_context, *this,
                                  event, external_state_provider,
-                                 [this]() { exit_root_state_container(); })
+                                 [this]() { exit_root_state_container(); });
     }
   }
 
@@ -238,12 +250,12 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
 private:
   entry_state_scheduler<states_list_t<RootStateContainer>> state_scheduler_;
   RootStateContainer root_state_container_;
-  TransitionTable transition_table_;
+  RootTransitionTable transition_table_;
   task_queue q_;
 
-  constexpr void
-  enter_root_state_container(concepts::state_schedule const &state_schedule,
-                             concepts::event auto const &event) {
+  constexpr void enter_root_state_container(
+      concepts::state_schedule auto const &state_schedule,
+      concepts::event auto const &event) {
     internal_event_engine event_engine{root_state_container_, transition_table_,
                                        q_};
     root_state_container_.on_entry(state_schedule, event, event_engine,

@@ -2,7 +2,6 @@
 
 #include "skizzay/fsm/const_ref.h"
 #include "skizzay/fsm/event.h"
-#include "skizzay/fsm/event_triggered_context.h"
 #include "skizzay/fsm/state.h"
 
 #include <concepts>
@@ -11,15 +10,6 @@
 #include <utility>
 
 namespace skizzay::fsm {
-
-namespace action_transition_details_ {
-
-template <concepts::event Event> struct fake_event_triggered_context {
-  using events_list_type = events_list<std::remove_cvref_t<Event>>;
-  add_cref_t<Event> event() const noexcept;
-  constexpr void post_event(concepts::event auto &&) noexcept {}
-};
-} // namespace action_transition_details_
 
 template <concepts::state CurrentState, concepts::state NextState,
           concepts::event Event, typename Action>
@@ -40,8 +30,7 @@ struct action_transition {
   }
 
   constexpr void on_triggered(event_type const &) noexcept(
-      std::is_nothrow_invocable_v<Action>) requires
-      std::invocable<Action> {
+      std::is_nothrow_invocable_v<Action>) requires std::invocable<Action> {
     std::invoke(action_);
   }
 
