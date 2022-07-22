@@ -2,7 +2,6 @@
 
 #include "skizzay/fsm/const_ref.h"
 #include "skizzay/fsm/event.h"
-#include "skizzay/fsm/event_context.h"
 #include "skizzay/fsm/state.h"
 #include "skizzay/fsm/transition.h"
 #include "skizzay/fsm/transition_table.h"

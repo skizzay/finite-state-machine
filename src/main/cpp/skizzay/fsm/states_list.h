@@ -93,7 +93,10 @@ requires concepts::states_list<typename basic_next_states_list_t<T>::type> &&
   using type = typename basic_next_states_list_t<T>::type;
 };
 
-template <typename T> struct impl<T &> : impl<std::remove_cvref_t<T>> {};
+template <typename T>
+requires std::is_reference_v<T>
+struct impl<T> : impl<std::remove_reference_t<T>> {
+};
 } // namespace next_states_list_t_details_
 
 template <typename T>

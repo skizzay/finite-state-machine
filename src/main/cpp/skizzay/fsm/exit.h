@@ -1,29 +1,14 @@
 #pragma once
 
-#include "skizzay/fsm/event_context.h"
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/event_engine.h"
 #include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_provider.h"
 
 namespace skizzay::fsm {
 
 namespace exit_fn_details_ {
 template <typename... Ts> void on_exit(Ts const &...) = delete;
-
-template <typename State, typename EventContext>
-concept event_exitable = requires(State &state, EventContext &event_context) {
-  state.on_exit(event_context.event());
-}
-|| requires(State &state, EventContext &event_context) {
-  on_exit(state, event_context.event());
-};
-
-template <typename State, typename EventContext>
-concept event_context_exitable = requires(State &state,
-                                          EventContext &event_context) {
-  state.on_exit(event_context);
-}
-|| requires(State &state, EventContext &event_context) {
-  on_exit(state, event_context);
-};
 
 struct exit_fn final {
   template <concepts::state State, concepts::event Event,

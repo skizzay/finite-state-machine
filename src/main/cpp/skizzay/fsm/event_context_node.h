@@ -1,6 +1,6 @@
 #pragma once
 
-#include "skizzay/fsm/event_context.h"
+#include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/transition.h"
 #include "skizzay/fsm/transition_table.h"
@@ -12,23 +12,9 @@
 
 namespace skizzay::fsm {
 
-namespace event_context_node_details_ {
-template <typename, typename>
-struct schedule_entry_template_member_function : std::false_type {};
-template <typename T, concepts::state State>
-requires requires(T &t) { t.template schedule_entry<State>(); }
-struct schedule_entry_template_member_function<T, State> : std::true_type {};
-
-} // namespace event_context_node_details_
-
 template <concepts::event_transition_context ParentEventTransitionContext,
           concepts::states_list StatesList>
-requires all_v<
-    next_states_list_t<ParentEventTransitionContext>,
-    curry<
-        event_context_node_details_::schedule_entry_template_member_function,
-        ParentEventTransitionContext>::template type> struct event_context_node
-    : ParentEventTransitionContext {
+struct event_context_node : ParentEventTransitionContext {
   using ParentEventTransitionContext::states_list_type;
   using ParentEventTransitionContext::transition_table_type;
 

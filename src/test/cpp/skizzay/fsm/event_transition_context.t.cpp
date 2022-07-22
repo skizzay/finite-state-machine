@@ -3,7 +3,6 @@
 #include "test_objects.h"
 #include <catch2/catch.hpp>
 #include <skizzay/fsm/detected.h>
-#include <skizzay/fsm/event_context.h>
 #include <skizzay/fsm/simple_transition.h>
 #include <skizzay/fsm/states_list.h>
 #include <skizzay/fsm/transition_table.h>
@@ -157,7 +156,9 @@ struct valid_event_transition_context {
                                           test_event_type>
       t;
 
-  constexpr void on_transition(concepts::transition_in<transition_table_type> auto &, concepts::event auto const &) {}
+  constexpr void
+  on_transition(concepts::transition_in<transition_table_type> auto &,
+                concepts::event auto const &) {}
 
   constexpr std::tuple<
       simple_transition<test_state_type, test_state_type, test_event_type> &>

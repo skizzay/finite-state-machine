@@ -1,6 +1,5 @@
 #pragma once
 
-#include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_context_node.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/optional_reference.h"
@@ -22,17 +21,10 @@ namespace skizzay::fsm {
 
 namespace flat_state_container_details_ {
 
-template <concepts::states_list StatesList> struct contains_any_states {
-  template <concepts::state_container StateContainer>
-  using test = contains_any<StatesList, states_list_t<StateContainer>>;
-};
-
-template <concepts::entry_context EntryContext,
-          concepts::state_containers_list StateContainersList>
-using next_state_containers_indices_t = as_index_sequence_t<
-    filter_t<StateContainersList, contains_any_states<next_states_list_t<
-                                      EntryContext>>::template test>,
-    StateContainersList>;
+template <concepts::states_list StatesList,
+          concepts::state_container StateContainer>
+struct contains_any_states
+    : contains_any<StatesList, states_list_t<StateContainer>> {};
 
 template <concepts::state_container... StateContainers> class container {
   using tuple_type = std::tuple<StateContainers...>;
@@ -233,9 +225,12 @@ public:
                           concepts::event auto const &event,
                           concepts::event_engine auto &event_engine,
                           concepts::state_provider auto &state_provider) {
-    constexpr auto const next_state_container_indices =
-        next_state_containers_indices_t<
-            std::remove_cvref_t<decltype(state_schedule)>, tuple_type>{};
+    constexpr auto const next_state_container_indices = as_index_sequence_t<
+        filter_t<
+            tuple_type,
+            curry<contains_any_states,
+                  next_states_list_t<decltype(state_schedule)>>::template type>,
+        tuple_type>{};
     std::array const indices = get_next_state_container_indices(
         state_schedule, next_state_container_indices);
     validate_container_indices(indices);

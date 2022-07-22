@@ -1,10 +1,10 @@
 #pragma once
 
-#include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_context_node.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/state.h"
 #include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/state_schedule.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/type_list.h"
 #include "skizzay/fsm/types.h"
@@ -69,7 +69,6 @@ template <concepts::state_container... StateContainers> class container {
     (std::make_index_sequence<N>{});
   }
 
-  template <typename> friend struct entry_context;
   template <concepts::event_transition_context ParentEventTransitionContext>
   struct event_transition_context
       : event_context_node<ParentEventTransitionContext,
