@@ -62,9 +62,9 @@ template <concepts::state_container... StateContainers> class container {
   template <std::size_t... Is>
   constexpr std::array<std::size_t, sizeof...(Is)>
   get_next_state_container_indices(
-      concepts::entry_context auto const &entry_context,
+      concepts::state_schedule auto const &state_schedule,
       std::index_sequence<Is...> const) const noexcept {
-    return {{(has_state_scheduled_for_entry(entry_context,
+    return {{(has_state_scheduled_for_entry(state_schedule,
                                             std::get<Is>(state_containers_))
                   ? Is
                   : sizeof...(StateContainers))...}};
@@ -78,7 +78,7 @@ template <concepts::state_container... StateContainers> class container {
           return index == sizeof...(StateContainers);
         };
     auto const end_iter = std::end(indices);
-    auto const index_iter =
+    [[maybe_unused]] auto const index_iter =
         std::find_if_not(std::begin(indices), end_iter, is_invalid_index);
     assert(end_iter != index_iter && "Next state container could not be found");
     assert(std::find_if_not(std::next(index_iter), end_iter,
@@ -86,36 +86,56 @@ template <concepts::state_container... StateContainers> class container {
            "Multiple state containers identified for entry");
   }
 
-  template <std::size_t I, concepts::entry_context EntryContext>
-  constexpr void maybe_enter_state_container(std::size_t const index,
-                                             EntryContext &entry_context) {
-    if (I == index) {
-      std::get<I>(state_containers_).on_entry(entry_context);
+  template <std::size_t I, concepts::state_schedule StateSchedule,
+            concepts::event Event, concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  constexpr bool
+  maybe_enter_state_container(std::size_t const index,
+                              StateSchedule const &state_schedule,
+                              Event const &event, EventEngine &event_engine,
+                              StateProvider &state_provider) {
+    auto const make_entry = [this](StateSchedule const &state_schedule,
+                                   Event const &event,
+                                   EventEngine &event_engine,
+                                   StateProvider &state_provider) -> bool {
+      std::get<I>(state_containers_)
+          .on_entry(state_schedule, event, event_engine, state_provider);
       current_index_ = I;
-    }
+      return true;
+    };
+    return (I == index) &&
+           make_entry(state_schedule, event, event_engine, state_provider);
   }
 
-  template <std::size_t N, concepts::entry_context EntryContext,
+  template <std::size_t N, concepts::state_schedule StateSchedule,
+            concepts::event Event, concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider,
             typename StateContainerIndexSequence>
   requires(N == length_v<StateContainerIndexSequence>) constexpr void enter_state_container(
-      std::array<std::size_t, N> const &indices, EntryContext &entry_context,
+      std::array<std::size_t, N> const &indices,
+      StateSchedule const &state_schedule, Event const &event,
+      EventEngine &event_engine, StateProvider &state_provider,
       StateContainerIndexSequence const) {
     [&]<std::size_t... Is>(std::index_sequence<Is...> const) {
       ((this->template maybe_enter_state_container<
-           value_at_v<Is, StateContainerIndexSequence>>(indices[Is],
-                                                        entry_context)),
+           value_at_v<Is, StateContainerIndexSequence>>(
+           indices[Is], state_schedule, event, event_engine, state_provider)) ||
        ...);
     }
     (std::make_index_sequence<N>{});
   }
 
   constexpr bool dispatch_event(
-      concepts::event_transition_context auto &event_transition_context) {
+      concepts::event_transition_context auto &event_transition_context,
+      concepts::event auto const &event,
+      concepts::event_engine auto &event_engine,
+      concepts::state_provider auto &state_provider) {
     return [&]<std::size_t... Is>(std::index_sequence<Is...> const) {
-      return (
-          (Is == current_index_ && std::get<Is>(state_containers_)
-                                       .on_event(event_transition_context)) ||
-          ...);
+      return ((Is == current_index_ &&
+               std::get<Is>(state_containers_)
+                   .on_event(event_transition_context, event, event_engine,
+                             state_provider)) ||
+              ...);
     }
     (std::make_index_sequence<sizeof...(StateContainers)>{});
   }
@@ -158,6 +178,28 @@ public:
      std::make_index_sequence<length_v<tuple_type>>{});
   }
 
+  constexpr auto memento() const
+      noexcept((is_memento_nothrow_v<StateContainers> && ...)) {
+    constexpr auto const memento_impl =
+        [this]<std::size_t I, std::size_t... Is>(
+            std::index_sequence<I, Is...> const,
+            auto const &impl) noexcept(noexcept(std::get<I>(state_containers_)
+                                                    .memento()))
+            ->std::variant<memento_t<StateContainers>...> {
+      if (I == current_index_) {
+        return std::get<I>(state_containers_);
+      } else {
+        if constexpr (empty_v<std::index_sequence<Is...>>) {
+          throw;
+        } else {
+          return impl(std::index_sequence<Is...>{}, impl);
+        }
+      }
+    };
+    return memento_impl(std::make_index_sequence<length_v<tuple_type>>{},
+                        memento_impl);
+  }
+
   template <concepts::state_in<states_list_type> S>
   constexpr S const &state() const noexcept {
     return this->template get_state_container_for<S>().template state<S>();
@@ -176,36 +218,54 @@ public:
     return sizeof...(StateContainers) == current_index_;
   }
 
-  constexpr void on_entry(concepts::initial_entry_context auto &entry_context) {
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          initial_entry_event_t const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
     assert(is_inactive() && "Conducting initial entry into flat state "
                             "container which is already active");
-    std::get<0>(state_containers_).on_entry(entry_context);
+    std::get<0>(state_containers_)
+        .on_entry(state_schedule, event, event_engine, state_provider);
     current_index_ = 0;
   }
 
-  template <concepts::entry_context EntryContext>
-  constexpr void on_entry(EntryContext &entry_context) {
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          concepts::event auto const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
     constexpr auto const next_state_container_indices =
-        next_state_containers_indices_t<EntryContext, tuple_type>{};
+        next_state_containers_indices_t<
+            std::remove_cvref_t<decltype(state_schedule)>, tuple_type>{};
     std::array const indices = get_next_state_container_indices(
-        entry_context, next_state_container_indices);
+        state_schedule, next_state_container_indices);
     validate_container_indices(indices);
-    enter_state_container(indices, entry_context, next_state_container_indices);
+    enter_state_container(indices, state_schedule, event, event_engine,
+                          state_provider, next_state_container_indices);
   }
 
-  constexpr bool on_event(concepts::final_exit_event_transition_context auto
-                              &final_exit_event_context) {
+  constexpr bool
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           final_exit_event_t const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
     assert(is_active() && "Handling a final exit event in a flat state "
                           "container which is inactive");
-    bool const result = dispatch_event(final_exit_event_context);
+    bool const result = dispatch_event(event_transition_context, event,
+                                       event_engine, state_provider);
     reset_index();
     return result;
   }
 
   constexpr bool
-  on_event(concepts::event_transition_context auto &event_transition_context) {
-    event_context_node current_context{*this, event_transition_context};
-    bool const result = dispatch_event(current_context);
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           concepts::event auto const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
+    event_context_node<std::remove_cvref_t<decltype(event_transition_context)>,
+                       states_list_type>
+        current_context{event_transition_context};
+    bool const result =
+        dispatch_event(current_context, event, event_engine, state_provider);
     if (current_context.has_been_scheduled()) {
       reset_index();
     }

@@ -67,7 +67,8 @@ SCENARIO("single state container event handling",
                                        states_list_t<transition_table_type>,
                                        events_list_t<transition_table_type>>
           initial_entry_context;
-      target.on_entry(initial_entry_context);
+      execute_initial_entry(target, initial_entry_context,
+                            initial_entry_context);
 
       THEN("it returns a populated current state") {
         REQUIRE(target.current_state().has_value());
@@ -86,7 +87,8 @@ SCENARIO("single state container event handling",
         test_objects::fake_event_transition_context<final_exit_event_t,
                                                     transition_table_type>
             event_transition_context;
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual = execute_final_exit(target, event_transition_context,
+                                               event_transition_context);
 
         THEN("the event was handled") {
           REQUIRE(actual);
@@ -99,17 +101,18 @@ SCENARIO("single state container event handling",
       }
 
       AND_WHEN("a reentering event is raised") {
+        test_objects::test_event<0> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<0>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
         test_objects::fake_entry_context<test_objects::test_event<0>,
                                          states_list_t<transition_table_type>,
                                          events_list_t<transition_table_type>>
             entry_context;
-        entry_context.e = event_transition_context.e;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
 
         THEN("the event was handled") {
           REQUIRE(actual);
@@ -119,7 +122,7 @@ SCENARIO("single state container event handling",
           }
 
           AND_WHEN("entry is attempted") {
-            target.on_entry(entry_context);
+            target.on_entry(entry_context, event, entry_context, entry_context);
             THEN("it was reentered") {
               REQUIRE(1 ==
                       target.state<test_state_type>().event_reentry_count[0]);
@@ -129,12 +132,14 @@ SCENARIO("single state container event handling",
       }
 
       AND_WHEN("an exiting event is raised") {
+        test_objects::test_event<1> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<1>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
 
         THEN("the event was handled") {
           REQUIRE(actual);
@@ -150,12 +155,14 @@ SCENARIO("single state container event handling",
       }
 
       AND_WHEN("a non-triggering event is raised") {
+        test_objects::test_event<1> event{false};
         test_objects::fake_event_transition_context<test_objects::test_event<1>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = false;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
 
         THEN("the event was not handled") {
           REQUIRE_FALSE(actual);
@@ -168,12 +175,14 @@ SCENARIO("single state container event handling",
 
       AND_WHEN(
           "an ambiguously triggering event (reenter then exit) is raised") {
+        test_objects::test_event<2> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<2>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
 
-        REQUIRE_THROWS_AS(target.on_event(event_transition_context),
+        REQUIRE_THROWS_AS(target.on_event(event_transition_context, event,
+                                          event_transition_context,
+                                          event_transition_context),
                           state_transition_ambiguity);
 
         THEN("state transitition ambiguity has been thrown") { REQUIRE(true); }
@@ -181,12 +190,14 @@ SCENARIO("single state container event handling",
 
       AND_WHEN(
           "an ambiguously triggering event (exit then reenter) is raised") {
+        test_objects::test_event<3> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<3>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
 
-        REQUIRE_THROWS_AS(target.on_event(event_transition_context),
+        REQUIRE_THROWS_AS(target.on_event(event_transition_context, event,
+                                          event_transition_context,
+                                          event_transition_context),
                           state_transition_ambiguity);
 
         THEN("state transitition ambiguity has been thrown") { REQUIRE(true); }
@@ -194,11 +205,12 @@ SCENARIO("single state container event handling",
     }
 
     WHEN("entered based upon transition") {
+      test_objects::test_event<1> event;
       test_objects::fake_entry_context<test_objects::test_event<1>,
                                        states_list_t<transition_table_type>,
                                        events_list_t<transition_table_type>>
           entry_context;
-      target.on_entry(entry_context);
+      target.on_entry(entry_context, event, entry_context, entry_context);
 
       THEN("it returns a populated current state") {
         REQUIRE(target.current_state().has_value());
@@ -217,7 +229,8 @@ SCENARIO("single state container event handling",
         test_objects::fake_event_transition_context<final_exit_event_t,
                                                     transition_table_type>
             event_transition_context;
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual = execute_final_exit(target, event_transition_context,
+                                               event_transition_context);
 
         THEN("the event was handled") {
           REQUIRE(actual);
@@ -230,12 +243,14 @@ SCENARIO("single state container event handling",
       }
 
       AND_WHEN("a reentering event is raised") {
+        test_objects::test_event<0> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<0>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
 
         THEN("the event was handled") {
           REQUIRE(actual);
@@ -247,12 +262,14 @@ SCENARIO("single state container event handling",
       }
 
       AND_WHEN("an exiting event is raised") {
+        test_objects::test_event<1> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<1>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
 
         THEN("the event was handled") {
           REQUIRE(actual);
@@ -264,12 +281,14 @@ SCENARIO("single state container event handling",
       }
 
       AND_WHEN("a non-triggering event is raised") {
+        test_objects::test_event<1> event{false};
         test_objects::fake_event_transition_context<test_objects::test_event<1>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = false;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
 
         THEN("the event was not handled") {
           REQUIRE_FALSE(actual);
@@ -282,12 +301,14 @@ SCENARIO("single state container event handling",
 
       AND_WHEN(
           "an ambiguously triggering event (reenter then exit) is raised") {
+        test_objects::test_event<2> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<2>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
 
-        REQUIRE_THROWS_AS(target.on_event(event_transition_context),
+        REQUIRE_THROWS_AS(target.on_event(event_transition_context, event,
+                                          event_transition_context,
+                                          event_transition_context),
                           state_transition_ambiguity);
 
         THEN("state transitition ambiguity has been thrown") { REQUIRE(true); }
@@ -295,12 +316,14 @@ SCENARIO("single state container event handling",
 
       AND_WHEN(
           "an ambiguously triggering event (exit then reenter) is raised") {
+        test_objects::test_event<3> event{true};
         test_objects::fake_event_transition_context<test_objects::test_event<3>,
                                                     transition_table_type>
             event_transition_context;
-        event_transition_context.e.pass_acceptance = true;
 
-        REQUIRE_THROWS_AS(target.on_event(event_transition_context),
+        REQUIRE_THROWS_AS(target.on_event(event_transition_context, event,
+                                          event_transition_context,
+                                          event_transition_context),
                           state_transition_ambiguity);
 
         THEN("state transitition ambiguity has been thrown") { REQUIRE(true); }
@@ -351,7 +374,7 @@ SCENARIO("single state container querying",
                                      states_list<test_state_type>,
                                      test_objects::test_events_list<num_events>>
         initial_entry_context;
-    target.on_entry(initial_entry_context);
+    execute_initial_entry(target, initial_entry_context, initial_entry_context);
 
     WHEN("queried that is done after visitation") {
       test_objects::test_query<1> query{0};

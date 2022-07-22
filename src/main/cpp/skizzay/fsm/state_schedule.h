@@ -27,9 +27,10 @@ struct has_is_scheduled_template_member_function<T, State> : std::true_type {};
 //   { t.template schedule_entry<State>() }
 //   noexcept;
 // }
-// struct has_schedule_entry_template_member_function<T, State> : std::true_type {
+// struct has_schedule_entry_template_member_function<T, State> : std::true_type
+// {
 // };
-} // namespace state_scheduler_details_
+} // namespace state_schedule_details_
 
 namespace concepts {
 template <typename T>
@@ -43,4 +44,12 @@ concept state_schedule = requires {
 } // namespace concepts
 template <typename T>
 struct is_state_schedule : std::bool_constant<concepts::state_schedule<T>> {};
+
+struct empty_state_schedule {
+  using next_states_list_type = states_list<>;
+
+  template <concepts::state> constexpr bool is_scheduled() const noexcept {
+    return false;
+  }
+};
 } // namespace skizzay::fsm

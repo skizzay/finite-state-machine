@@ -72,8 +72,7 @@ SCENARIO("orthogonal state container handling events") {
           initial_entry_event_t, states_list_t<target_type>,
           test_objects::test_events_list<num_events>>
           entry_context;
-
-      target.on_entry(entry_context);
+      execute_initial_entry(target, entry_context, entry_context);
 
       THEN("both states return a populated current state") {
         REQUIRE(target.current_state<target_test_state<0>>().has_value());
@@ -102,7 +101,8 @@ SCENARIO("orthogonal state container handling events") {
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual = execute_final_exit(target, event_transition_context,
+                                               event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
 
@@ -122,6 +122,7 @@ SCENARIO("orthogonal state container handling events") {
 
       AND_WHEN("one state transitions to an external state") {
         using event_type = test_objects::test_event<0>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<target_test_state<0>,
@@ -130,7 +131,9 @@ SCENARIO("orthogonal state container handling events") {
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("it is not active") {
@@ -153,6 +156,7 @@ SCENARIO("orthogonal state container handling events") {
 
       AND_WHEN("both states transition to an external state") {
         using event_type = test_objects::test_event<0>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<target_test_state<0>,
@@ -163,7 +167,9 @@ SCENARIO("orthogonal state container handling events") {
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("it is not active") {
@@ -184,6 +190,7 @@ SCENARIO("orthogonal state container handling events") {
 
       AND_WHEN("no states trigger a transition") {
         using event_type = test_objects::test_event<0>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<target_test_state<2>,
@@ -192,7 +199,9 @@ SCENARIO("orthogonal state container handling events") {
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was not handled") {
           REQUIRE_FALSE(actual);
           AND_THEN("it is active") {
@@ -211,14 +220,16 @@ SCENARIO("entry into orthogonal states",
     target_type target;
 
     WHEN("entering the state container with no contained states scheduled") {
+      constexpr std::size_t event_id = 1;
+      test_objects::test_event<event_id> event;
       test_objects::fake_entry_context<
-          test_objects::test_event<1>,
+          test_objects::test_event<event_id>,
           test_objects::test_states_list<num_events, 3>,
           test_objects::test_events_list<num_events>,
           states_list<target_test_state<2>>>
           entry_context;
 
-      target.on_entry(entry_context);
+      target.on_entry(entry_context, event, entry_context, entry_context);
 
       THEN("both states were initially entered") {
         REQUIRE(target.state<target_test_state<0>>().initial_entry_count == 1);
@@ -228,13 +239,14 @@ SCENARIO("entry into orthogonal states",
 
     WHEN("entering the state container with both contained states scheduled") {
       constexpr std::size_t event_id = 0;
+      test_objects::test_event<event_id> event;
       test_objects::fake_entry_context<
           test_objects::test_event<event_id>,
           test_objects::test_states_list<num_events, 3>,
           test_objects::test_events_list<num_events>>
           entry_context;
 
-      target.on_entry(entry_context);
+      target.on_entry(entry_context, event, entry_context, entry_context);
 
       THEN("both states were event entered") {
         REQUIRE(target.state<target_test_state<0>>().initial_entry_count == 0);
@@ -251,6 +263,7 @@ SCENARIO("entry into orthogonal states",
     WHEN("entering the state container with one of the contained states "
          "scheduled") {
       constexpr std::size_t event_id = 0;
+      test_objects::test_event<event_id> event;
       test_objects::fake_entry_context<
           test_objects::test_event<event_id>,
           test_objects::test_states_list<num_events, 3>,
@@ -258,7 +271,7 @@ SCENARIO("entry into orthogonal states",
           test_objects::test_states_list<num_events, 1>>
           entry_context;
 
-      target.on_entry(entry_context);
+      target.on_entry(entry_context, event, entry_context, entry_context);
 
       THEN("the scheduled state was event entered") {
         REQUIRE(target.state<target_test_state<0>>().initial_entry_count == 0);
@@ -285,7 +298,7 @@ SCENARIO("orthogonal state container querying",
         initial_entry_event_t, test_objects::test_states_list<num_events, 2>,
         test_objects::test_events_list<num_events>>
         initial_entry_context;
-    target.on_entry(initial_entry_context);
+    execute_initial_entry(target, initial_entry_context, initial_entry_context);
 
     WHEN("queried that is done after visiting first container") {
       test_objects::test_query<length_v<states_list_t<target_type>>> query{0};

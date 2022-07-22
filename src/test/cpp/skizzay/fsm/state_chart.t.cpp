@@ -22,7 +22,7 @@ SCENARIO("state chart concepts", "[unit][state-chart]") {
   using event_type = test_objects::test_event<event_id>;
   using transition_table_type =
       std::tuple<simple_transition<state_type, state_type, event_type>>;
-  using target_type = state_chart<state_container_type, transition_table_type>;
+  using target_type = state_chart<transition_table_type, state_container_type>;
 
   REQUIRE(std::destructible<target_type>);
   REQUIRE(std::copy_constructible<target_type>);
@@ -38,7 +38,7 @@ SCENARIO("state chart starting/stopping", "[unit][state-chart]") {
       std::tuple<simple_transition<state_type, state_type, event_type>>;
 
   GIVEN("a state chart") {
-    state_chart target{state_container_type{}, transition_table_type{}};
+    state_chart target{transition_table_type{}, state_container_type{}};
 
     THEN("it is not running") {
       REQUIRE(target.is_stopped());
@@ -115,7 +115,7 @@ SCENARIO("state chart querying", "[unit][state-chart]") {
       std::tuple<simple_transition<state_type, state_type, event_type>>;
 
   GIVEN("a state chart") {
-    state_chart target{state_container_type{}, transition_table_type{}};
+    state_chart target{transition_table_type{}, state_container_type{}};
 
     WHEN("it is queried") {
       test_objects::test_query<1> query;
@@ -150,14 +150,12 @@ SCENARIO("state chart event handling", "[unit][state-chart]") {
       std::tuple<simple_transition<state_type, state_type, event_type>>;
 
   GIVEN("a state chart") {
-    state_chart target{state_container_type{}, transition_table_type{}};
+    state_chart target{transition_table_type{}, state_container_type{}};
 
     WHEN("an event is posted") {
       bool const handled = target.on(event_type{});
 
-      THEN("it was not handled") {
-        REQUIRE_FALSE(handled);
-      }
+      THEN("it was not handled") { REQUIRE_FALSE(handled); }
     }
 
     WHEN("it is started") {
@@ -169,7 +167,9 @@ SCENARIO("state chart event handling", "[unit][state-chart]") {
         THEN("it was handled") { REQUIRE(handled); }
 
         THEN("the state's event callback was triggered") {
-          REQUIRE(1 == target.current_state<state_type>().value().event_reentry_count[event_id]);
+          REQUIRE(1 == target.current_state<state_type>()
+                           .value()
+                           .event_reentry_count[event_id]);
         }
       }
     }

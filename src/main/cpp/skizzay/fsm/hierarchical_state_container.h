@@ -23,7 +23,9 @@ struct parent_state_container
   using basic_state_container<parent_state_container<ParentState>,
                               ParentState>::basic_state_container;
 
-  constexpr void do_exit(concepts::event_context auto &) noexcept {}
+  constexpr void do_exit(concepts::event auto const &,
+                         concepts::event_engine auto &,
+                         concepts::state_provider auto &) noexcept {}
 };
 
 template <concepts::state ParentState,
@@ -50,38 +52,49 @@ class container {
     }
   }
 
-  template <concepts::entry_context EntryContext>
-  constexpr void enter_parent_state_container(EntryContext &entry_context) {
-    using candidate_states_list_type =
-        candidate_states_list_t<EntryContext,
-                                parent_state_container<ParentState>>;
+  constexpr void enter_child_state_container(
+      concepts::state_schedule auto const &state_schedule,
+      concepts::event auto const &event,
+      concepts::event_engine auto &event_engine,
+      concepts::state_provider auto &state_provider) {
+    using candidate_states_list_type = intersection_of_t<
+        next_states_list_t<std::remove_cvref_t<decltype(state_schedule)>>,
+        states_list_t<ChildStateContainer>>;
     if constexpr (!empty_v<candidate_states_list_type>) {
       if (has_state_scheduled_for_entry(
-              std::as_const(entry_context),
-              std::as_const(parent_state_container_))) {
-        parent_state_container_.on_entry(entry_context);
-      } else if (parent_state_container_.is_inactive()) {
-        execute_initial_entry(entry_context, parent_state_container_);
+              state_schedule, std::as_const(child_state_container_))) {
+        child_state_container_.on_entry(state_schedule, event, event_engine,
+                                        state_provider);
+      } else {
+        execute_initial_entry(child_state_container_, event_engine,
+                              state_provider);
       }
-    } else if (parent_state_container_.is_inactive()) {
-      execute_initial_entry(entry_context, parent_state_container_);
+    } else {
+      execute_initial_entry(child_state_container_, event_engine,
+                            state_provider);
     }
   }
 
-  template <concepts::entry_context EntryContext>
-  constexpr void enter_child_state_container(EntryContext &entry_context) {
-    using candidate_states_list_type =
-        candidate_states_list_t<EntryContext, ChildStateContainer>;
+  constexpr void enter_parent_state_container(
+      concepts::state_schedule auto const &state_schedule,
+      concepts::event auto const &event,
+      concepts::event_engine auto &event_engine,
+      concepts::state_provider auto &state_provider) {
+    using candidate_states_list_type = intersection_of_t<
+        next_states_list_t<std::remove_cvref_t<decltype(state_schedule)>>,
+        states_list<ParentState>>;
     if constexpr (!empty_v<candidate_states_list_type>) {
       if (has_state_scheduled_for_entry(
-              std::as_const(entry_context),
-              std::as_const(child_state_container_))) {
-        child_state_container_.on_entry(entry_context);
-      } else {
-        execute_initial_entry(entry_context, child_state_container_);
+              state_schedule, std::as_const(parent_state_container_))) {
+        parent_state_container_.on_entry(state_schedule, event, event_engine,
+                                         state_provider);
+      } else if (parent_state_container_.is_inactive()) {
+        execute_initial_entry(parent_state_container_, event_engine,
+                              state_provider);
       }
-    } else {
-      execute_initial_entry(entry_context, child_state_container_);
+    } else if (parent_state_container_.is_inactive()) {
+      execute_initial_entry(parent_state_container_, event_engine,
+                            state_provider);
     }
   }
 
@@ -148,6 +161,13 @@ public:
            child_state_container_.query(std::forward<Query>(query));
   }
 
+  constexpr auto memento() const
+      noexcept(is_memento_nothrow_v<parent_state_container<ParentState>>
+                   &&is_memento_nothrow_v<ChildStateContainer>) {
+    return std::tuple{parent_state_container_.memento(),
+                      child_state_container_.memento()};
+  }
+
   template <concepts::state_in<states_list_type> S>
   constexpr S const &state() const noexcept {
     return this->template get_state_container_for<S>().template state<S>();
@@ -159,53 +179,76 @@ public:
   }
 
   constexpr bool is_active() const noexcept {
-    return child_state_container_.is_active();
+    return parent_state_container_.is_active() || child_state_container_.is_active();
   }
 
   constexpr bool is_inactive() const noexcept {
-    return parent_state_container_.is_inactive();
+    return parent_state_container_.is_inactive() && child_state_container_.is_inactive();
   }
 
-  constexpr void
-  on_entry(concepts::initial_entry_context auto &initial_entry_context) {
-    parent_state_container_.on_entry(initial_entry_context);
-    child_state_container_.on_entry(initial_entry_context);
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          initial_entry_event_t const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    parent_state_container_.on_entry(state_schedule, event, event_engine,
+                                     state_provider);
+    child_state_container_.on_entry(state_schedule, event, event_engine,
+                                    state_provider);
   }
 
-  template <concepts::entry_context EntryContext>
-  constexpr void on_entry(EntryContext &entry_context) {
-    enter_parent_state_container(entry_context);
-    enter_child_state_container(entry_context);
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          concepts::event auto const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    enter_parent_state_container(state_schedule, event, event_engine,
+                                 state_provider);
+    enter_child_state_container(state_schedule, event, event_engine,
+                                state_provider);
   }
 
-  constexpr bool on_event(concepts::final_exit_event_transition_context auto
-                              &event_transition_context) {
-    bool const child_result =
-        child_state_container_.on_event(event_transition_context);
-    bool const parent_result =
-        parent_state_container_.on_event(event_transition_context);
-    exit(parent_state_container_.state(), event_transition_context);
+  constexpr bool
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           final_exit_event_t const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
+    bool const child_result = child_state_container_.on_event(
+        event_transition_context, event, event_engine, state_provider);
+    bool const parent_result = parent_state_container_.on_event(
+        event_transition_context, event, event_engine, state_provider);
+    exit(parent_state_container_.state(), final_exit_event, event_engine,
+         state_provider);
     return child_result || parent_result;
   }
 
   constexpr bool
-  on_event(concepts::event_transition_context auto &event_transition_context) {
-    event_context_node child_event_context_node{*this,
-                                                event_transition_context};
-    if (child_state_container_.on_event(child_event_context_node)) {
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           concepts::event auto const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
+    event_context_node<std::remove_cvref_t<decltype(event_transition_context)>,
+                       states_list_type>
+        child_event_context_node{event_transition_context};
+    if (child_state_container_.on_event(child_event_context_node, event,
+                                        event_engine, state_provider)) {
       if (child_event_context_node.will_exit_container()) {
-        auto [final_event_transition_context, ignored_] = execute_final_exit(
-            event_transition_context, parent_state_container_);
-        exit(parent_state_container_.state(), final_event_transition_context);
+        execute_final_exit(parent_state_container_, event_engine,
+                           state_provider);
+        exit(parent_state_container_.state(), final_exit_event, event_engine,
+             state_provider);
       }
       return true;
     } else {
-      event_context_node parent_event_context_node{*this,
-                                                   event_transition_context};
-      if (parent_state_container_.on_event(parent_event_context_node)) {
-        execute_final_exit(event_transition_context, child_state_container_);
+      event_context_node<
+          std::remove_cvref_t<decltype(event_transition_context)>,
+          states_list_type>
+          parent_event_context_node{event_transition_context};
+      if (parent_state_container_.on_event(parent_event_context_node, event,
+                                           event_engine, state_provider)) {
+        execute_final_exit(child_state_container_, event_engine,
+                           state_provider);
         if (parent_event_context_node.will_exit_container()) {
-          exit(parent_state_container_.state(), event_transition_context);
+          exit(parent_state_container_.state(),
+               event_transition_context.event(), event_engine, state_provider);
         }
         return true;
       } else {

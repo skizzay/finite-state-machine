@@ -1,14 +1,17 @@
 #pragma once
 
+#include "skizzay/fsm/accepts.h"
 #include "skizzay/fsm/boolean.h"
 #include "skizzay/fsm/const_ref.h"
 #include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_engine.h"
+#include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/events_list.h"
 #include "skizzay/fsm/simple_transition.h"
 #include "skizzay/fsm/state_accessible.h"
 #include "skizzay/fsm/state_provider.h"
 #include "skizzay/fsm/state_schedule.h"
+#include "skizzay/fsm/state_transition_ambiguity.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/transition_table.h"
 #include "skizzay/fsm/type_list.h"
@@ -18,35 +21,25 @@
 
 namespace skizzay::fsm {
 namespace is_state_container_details_ {
-struct fake_event_transition_context {
-  struct event_type {};
-  struct state_type {};
-  using states_list_type = states_list<state_type>;
+struct event_type {};
+struct state_type {};
+
+struct fake_event_engine {
   using events_list_type = events_list<event_type>;
-  using transition_table_type =
-      std::tuple<simple_transition<state_type, state_type, event_type>>;
-
-  event_type e;
-  state_type s;
-  [[no_unique_address]] simple_transition<state_type, state_type, event_type> t;
-
-  constexpr event_type const &event() const noexcept { return e; }
-
-  template <concepts::state_in<states_list_type> State>
-  constexpr State &state() noexcept {
-    return s;
-  }
-
-  template <concepts::state_in<states_list_type> State>
-  constexpr State const &state() const noexcept {
-    return s;
-  }
-
-  constexpr void on_transition(
-      concepts::transition_in<transition_table_type> auto &) noexcept {}
 
   constexpr void
   post_event(concepts::event_in<events_list_type> auto const &) noexcept {}
+};
+
+struct fake_event_transition_context {
+  using transition_table_type =
+      std::tuple<simple_transition<state_type, state_type, event_type>>;
+
+  [[no_unique_address]] simple_transition<state_type, state_type, event_type> t;
+
+  template <concepts::transition_in<transition_table_type> Transition>
+  constexpr void on_transition(Transition &,
+                               event_t<Transition> const &) noexcept {}
 
   constexpr std::tuple<simple_transition<state_type, state_type, event_type> &>
   get_transitions(state_type const &) noexcept {
@@ -57,18 +50,11 @@ struct fake_event_transition_context {
   constexpr void schedule_entry() noexcept {}
 };
 
-struct fake_entry_context {
-  struct event_type {};
-  struct state_type {};
-
+struct fake_state_provider {
   using states_list_type = states_list<state_type>;
-  using events_list_type = events_list<event_type>;
-  using next_states_list_type = states_list_type;
 
   event_type e;
   state_type s;
-
-  constexpr event_type const &event() const noexcept { return e; }
 
   template <concepts::state_in<states_list_type> State>
   constexpr State &state() noexcept {
@@ -79,31 +65,67 @@ struct fake_entry_context {
   constexpr State const &state() const noexcept {
     return s;
   }
+};
 
-  template <concepts::state_in<states_list_type>>
+struct fake_state_schedule {
+  using next_states_list_type = states_list<state_type>;
+
+  template <concepts::state_in<next_states_list_type>>
   constexpr bool is_scheduled() const noexcept {
     return false;
   }
-
-  constexpr void
-  post_event(concepts::event_in<events_list_type> auto const &) noexcept {}
 };
 } // namespace is_state_container_details_
+
+template <typename> struct is_memento_nothrow : std::false_type {};
+
+template <typename T>
+requires requires(T const &tc) {
+  { tc.memento() }
+  noexcept->std::copyable;
+}
+struct is_memento_nothrow<T> : std::true_type {};
+
+template <typename T>
+constexpr bool is_memento_nothrow_v = is_memento_nothrow<T>::value;
+
+template <typename> struct memento_type {};
+
+template <typename T>
+requires requires(T const &tc) {
+  { tc.memento() } -> std::copyable;
+}
+struct memento_type<T> {
+  using type = std::remove_cvref_t<
+      decltype(std::declval<std::add_const_t<T>>().memento())>;
+};
+
+template <typename T> using memento_t = typename memento_type<T>::type;
 
 namespace concepts {
 template <typename T>
 concept state_container = state_accessible<T> &&
     requires(T &t, T const &tc,
-             is_state_container_details_::fake_event_transition_context &fetc,
-             is_state_container_details_::fake_entry_context &fec) {
+             is_state_container_details_::fake_state_schedule const &fss,
+             is_state_container_details_::event_type const &e,
+             is_state_container_details_::fake_event_engine &fee,
+             is_state_container_details_::fake_state_provider &fsp,
+             is_state_container_details_::fake_event_transition_context &fetc) {
   { tc.is_active() }
   noexcept->concepts::boolean;
   { tc.is_inactive() }
   noexcept->concepts::boolean;
-  t.on_entry(fec);
-  { t.on_event(fetc) } -> concepts::boolean;
+  t.on_entry(fss, e, fee, fsp);
+  { t.on_event(fetc, e, fee, fsp) } -> concepts::boolean;
   { tc.query(no_op(true)) } -> concepts::boolean;
 };
+
+template <typename T, typename RootTransitionTable>
+concept root_state_container = state_container<T> &&
+    root_transition_table<RootTransitionTable> &&
+    contains_all_v<states_list_t<T>, states_list_t<RootTransitionTable>> &&
+    (length_v<states_list_t<T>> ==
+     length_v<states_list_t<RootTransitionTable>>);
 } // namespace concepts
 
 template <typename T>
@@ -128,107 +150,142 @@ has_state_scheduled_for_entry(StateSchedule const &state_schedule,
   (state_schedule, candidate_states_list_t<StateSchedule, StateContainer>{});
 }
 
-namespace execute_intial_entry_details_ {
-template <concepts::event_engine T>
-requires concepts::state_provider<T>
-struct initial_entry_context {
-  using states_list_type = states_list_t<T>;
-  using events_list_type = events_list_t<T>;
-  using event_type = initial_entry_event_t;
-  using current_states_list_type = states_list<>;
-  using next_states_list_type = states_list_type;
+namespace attempt_transitions_details_ {
 
-  constexpr explicit initial_entry_context(T &t) noexcept : t_{t} {}
+enum class acceptance_type { unaccepted, reentered, exited };
 
-  constexpr initial_entry_event_t const &event() const noexcept {
-    return initial_entry_event;
-  }
+constexpr acceptance_type
+impl(concepts::event_transition_context auto &event_transition_context,
+     concepts::state auto &state, concepts::event auto const &event,
+     concepts::state_provider auto &state_provider) {
+  acceptance_type acceptance = acceptance_type::unaccepted;
+  auto attempt_to_transition =
+      [&]<concepts::transition Transition>(Transition &transition) {
+        if (accepts(std::as_const(transition), std::as_const(state), event,
+                    std::as_const(state_provider))) {
+          if constexpr (concepts::self_transition<Transition>) {
+            switch (acceptance) {
+            case acceptance_type::exited:
+              throw state_transition_ambiguity{
+                  "Self transition encountered but state has already exited"};
 
-  template <concepts::state_in<next_states_list_type>>
-  constexpr bool is_scheduled() const noexcept {
-    return false;
-  }
+            default:
+              acceptance = acceptance_type::reentered;
+            }
+          } else {
+            switch (acceptance) {
+            case acceptance_type::reentered:
+              throw state_transition_ambiguity{
+                  "State changing transition encountered but state has "
+                  "already reentered"};
 
-  template <concepts::state_in<states_list_type> State>
-  constexpr State &state() noexcept {
-    return t_.template state<State>();
-  }
-
-  template <concepts::state_in<states_list_type> State>
-  constexpr State const &state() const noexcept {
-    return t_.template state<State>();
-  }
-
-  template <concepts::event_in<events_list_type> Event>
-  constexpr void post_event(Event const &event) {
-    t_.post_event(event);
-  }
-
-private:
-  T &t_;
-};
-} // namespace execute_intial_entry_details_
-
-template <concepts::event_engine T>
-requires concepts::state_provider<T>
-constexpr auto
-execute_initial_entry(T &entry_context,
-                      concepts::state_container auto &state_container) {
-  execute_intial_entry_details_::initial_entry_context initial_entry_context{
-      entry_context};
-  state_container.on_entry(initial_entry_context);
-  return initial_entry_context;
+            default:
+              acceptance = acceptance_type::exited;
+            }
+          }
+          event_transition_context.on_transition(transition, event);
+        }
+      };
+  std::apply(
+      [attempt_to_transition](concepts::transition auto &...transitions) {
+        (attempt_to_transition(transitions), ...);
+      },
+      event_transition_context.get_transitions(std::as_const(state)));
+  return acceptance;
 }
 
-namespace execute_final_exit_details_ {
-template <concepts::event_engine T>
-requires concepts::state_provider<T>
-struct final_event_transition_context {
-  using event_type = final_exit_event_t;
-  using events_list_type = events_list_t<T>;
-  using states_list_type = states_list_t<T>;
-  using transition_table_type = std::tuple<>;
-
-  constexpr explicit final_event_transition_context(T &t) noexcept : t_{t} {}
-
-  constexpr event_type const &event() const noexcept {
-    return final_exit_event;
+struct attempt_transitions_fn {
+  template <concepts::event_transition_context EventTransitionContext,
+            concepts::state State, std::invocable ExitCallback>
+  constexpr bool operator()(EventTransitionContext &event_transition_context,
+                            State &state, ExitCallback &&exit_callback) const {
+    return (*this)(event_transition_context, state,
+                   event_transition_context.event(), event_transition_context,
+                   std::forward<ExitCallback>(exit_callback));
   }
 
-  template <concepts::state_in<states_list_type> State>
-  constexpr State &state() noexcept {
-    return t_.template state<State>();
-  }
+  template <concepts::event_transition_context EventTransitionContext,
+            concepts::state State, concepts::event Event,
+            concepts::state_provider StateProvider, std::invocable ExitCallback>
+  constexpr bool operator()(EventTransitionContext &event_transition_context,
+                            State &state, Event const &event,
+                            StateProvider &state_provider,
+                            ExitCallback &&exit_callback) const {
+    switch (impl(event_transition_context, state, event, state_provider)) {
+    case acceptance_type::reentered:
+      return true;
 
-  template <concepts::state_in<states_list_type> State>
-  constexpr State const &state() const noexcept {
-    return t_.template state<State>();
-  }
+    case acceptance_type::exited:
+      if constexpr (concepts::boolean<std::invoke_result_t<ExitCallback>>) {
+        return std::forward<ExitCallback>(exit_callback)();
+      } else {
+        std::forward<ExitCallback>(exit_callback)();
+        return true;
+      }
 
-  template <concepts::event_in<events_list_type> Event>
-  constexpr void post_event(Event const &event) {
-    t_.post_event(event);
+    default:
+      return false;
+    }
   }
-
-  constexpr std::tuple<>
-  get_transitions(concepts::state auto const &) noexcept {
-    return {};
-  }
-
-private:
-  T &t_;
 };
-} // namespace execute_final_exit_details_
+} // namespace attempt_transitions_details_
 
-template <concepts::event_engine T>
-requires concepts::state_provider<T>
-constexpr auto
-execute_final_exit(T &entry_context,
-                   concepts::state_container auto &state_container) {
-  execute_final_exit_details_::final_event_transition_context
-      final_event_transition_context{entry_context};
-  bool const result = state_container.on_event(final_event_transition_context);
-  return std::tuple{final_event_transition_context, result};
+inline namespace attempt_transitions_fn_ {
+inline constexpr attempt_transitions_details_::attempt_transitions_fn
+    attempt_transitions = {};
+}
+
+constexpr void
+execute_initial_entry(concepts::state_container auto &state_container,
+                      concepts::event_engine auto &event_engine,
+                      concepts::state_provider auto &state_provider) {
+  state_container.on_entry(empty_state_schedule{}, initial_entry_event,
+                           event_engine, state_provider);
+}
+
+constexpr bool
+execute_final_exit(concepts::state_container auto &state_container,
+                   concepts::event_engine auto &event_engine,
+                   concepts::state_provider auto &state_provider) {
+  empty_event_transition_context event_transition_context;
+  return state_container.on_event(event_transition_context, final_exit_event,
+                                  event_engine, state_provider);
+}
+
+template <concepts::transition_table TransitionTable,
+          concepts::event_in<TransitionTable> Event>
+constexpr concepts::transition_table auto
+get_transition_table_for(TransitionTable &transition_table,
+                         Event const &) noexcept {
+  using transitions_list_type =
+      as_container_t<filter_t<map_t<TransitionTable, std::remove_cvref_t>,
+                              curry<is_event_in, Event>::template type>,
+                     simple_type_list>;
+
+  return []<concepts::transition... Transitions>(
+      TransitionTable & transition_table,
+      simple_type_list<Transitions...> const) noexcept {
+    return std::tie(std::get<Transitions>(transition_table)...);
+  }
+  (transition_table, transitions_list_type{});
+}
+
+template <concepts::transition_table TransitionTable,
+          concepts::state_in<current_states_list_t<TransitionTable>> State>
+constexpr concepts::transition_table auto
+get_transition_table_for(TransitionTable &transition_table,
+                         State const &) noexcept {
+  using transitions_list_type =
+      as_container_t<filter_t<map_t<TransitionTable, std::remove_cvref_t>,
+                              curry<is_current_state_in, State>::template type>,
+                     simple_type_list>;
+
+  return []<concepts::transition... Transitions>(
+      TransitionTable & transition_table,
+      simple_type_list<Transitions...> const) noexcept {
+    return std::tie(std::get<Transitions &>(transition_table)...);
+  }
+  (transition_table, transitions_list_type{});
 }
 
 } // namespace skizzay::fsm

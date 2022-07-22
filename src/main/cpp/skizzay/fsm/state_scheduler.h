@@ -22,7 +22,7 @@ struct has_schedule_entry_template_member_function<T, State> : std::true_type {
 
 namespace concepts {
 template <typename T>
-concept state_scheduler = requires {
+concept state_scheduler = requires(T &t) {
   typename next_states_list_t<T>;
 }
 &&all_v<

@@ -29,14 +29,6 @@ requires requires(EventProvider const &event_provider) {
 }
 struct is_event_provider_for<EventProvider, Event> : std::true_type {};
 
-template <concepts::event_provider EventProvider>
-requires(!requires {
-  typename EventProvider::event_type;
-}) struct basic_event_t<EventProvider> {
-  using type = std::remove_cvref_t<
-      decltype(std::declval<EventProvider const &>().event())>;
-};
-
 template <typename T>
 using is_event_provider = std::bool_constant<concepts::event_provider<T>>;
 

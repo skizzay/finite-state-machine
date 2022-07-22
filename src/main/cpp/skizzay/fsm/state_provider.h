@@ -10,18 +10,17 @@
 
 namespace skizzay::fsm {
 namespace state_provider_details_ {
-template <typename T> struct template_member_function {
-  template <typename> struct state : std::false_type {};
-};
+template <typename, typename>
+struct template_state_member_function : std::false_type {};
 
-template <typename T> template <typename State>
+template <typename T, typename State>
 requires concepts::state<State> && requires(T &t, T const &tc) {
   { t.template state<State>() }
   noexcept->std::same_as<std::add_lvalue_reference_t<State>>;
   { tc.template state<State>() }
   noexcept->std::same_as<std::add_lvalue_reference_t<State const>>;
 }
-struct template_member_function<T>::state<State> : std::true_type {};
+struct template_state_member_function<T, State> : std::true_type {};
 } // namespace state_provider_details_
 
 namespace concepts {
@@ -30,12 +29,12 @@ concept state_provider = requires {
   typename states_list_t<T>;
 }
 &&all_v<states_list_t<T>,
-        state_provider_details_::template_member_function<T>::template state>;
+        curry<state_provider_details_::template_state_member_function,
+              T>::template type>;
 
 template <typename T, typename State>
-concept state_provider_of =
-    state<State> && state_provider_details_::template_member_function<
-        T>::template state<State>::value;
+concept state_provider_of = state<State> &&
+    state_provider_details_::template_state_member_function<T, State>::value;
 } // namespace concepts
 
 template <typename T>

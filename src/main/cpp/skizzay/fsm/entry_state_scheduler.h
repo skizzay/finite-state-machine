@@ -19,6 +19,8 @@ template <concepts::states_list NextStatesList> struct entry_state_scheduler {
     scheduled_states_.set(index_of_<State>);
   }
 
+  constexpr void reset() noexcept { scheduled_states_.reset(); }
+
 private:
   template <concepts::state_in<next_states_list_type> State>
   static inline constexpr std::size_t const index_of_ =

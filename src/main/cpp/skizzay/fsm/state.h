@@ -20,17 +20,16 @@ template <typename> struct basic_state_t;
 namespace state_t_details_ {
 template <typename> struct impl;
 
-template<typename T>
+template <typename T>
 requires requires {
   typename T::state_type;
 } && concepts::state<typename T::state_type>
-struct impl<T> : std::true_type {};
+struct impl<T> : std::true_type {
+};
 
 template <typename T>
-requires concepts::state<typename basic_state_t<T>::type> && (!requires {
-  typename T::state_type;
-})
-struct impl<T> {
+requires concepts::state<typename basic_state_t<T>::type> &&
+    (!requires { typename T::state_type; }) struct impl<T> {
   using type = typename basic_state_t<T>::type;
 };
 
@@ -57,5 +56,21 @@ using current_state_t =
 
 template <typename T>
 using next_state_t = typename state_t_details_::next_state_t_impl<T>::type;
+
+template <typename, typename> struct is_current_state_in : std::false_type {};
+
+template <concepts::state State, typename T>
+requires requires { typename current_state_t<std::remove_cvref_t<T>>; }
+struct is_current_state_in<State, T>
+    : std::is_same<std::remove_cvref_t<State>,
+                   current_state_t<std::remove_cvref_t<T>>> {};
+
+template <typename, typename> struct is_next_state_in : std::false_type {};
+
+template <concepts::state State, typename T>
+requires requires { typename next_state_t<std::remove_cvref_t<T>>; }
+struct is_next_state_in<State, T>
+    : std::is_same<std::remove_cvref_t<State>,
+                   next_state_t<std::remove_cvref_t<T>>> {};
 
 } // namespace skizzay::fsm

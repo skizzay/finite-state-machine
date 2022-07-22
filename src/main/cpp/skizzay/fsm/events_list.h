@@ -19,7 +19,7 @@ template <typename T>
 concept events_list = is_events_list<T>::value;
 
 template <typename Event, typename EventsList>
-concept event_in = is_event_in<Event, EventsList>::value;
+concept event_in = event<Event> && is_event_in<Event, EventsList>::value;
 } // namespace concepts
 
 template <concepts::event Event, concepts::events_list EventsList>

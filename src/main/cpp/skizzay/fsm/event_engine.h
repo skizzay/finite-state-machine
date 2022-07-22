@@ -8,6 +8,10 @@
 
 namespace skizzay::fsm {
 namespace event_engine_details_ {
+struct ignore_flag final {
+  constexpr inline ignore_flag(bool const) noexcept {}
+};
+
 template <typename, typename>
 struct has_post_event_template_member_function : std::false_type {};
 
@@ -40,4 +44,5 @@ using is_event_engine = std::bool_constant<concepts::event_engine<T>>;
 template <typename T, typename... Events>
 using is_event_engine_for =
     std::bool_constant<concepts::event_engine_for<T, Events...>>;
+
 } // namespace skizzay::fsm

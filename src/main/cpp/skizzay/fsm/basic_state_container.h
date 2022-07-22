@@ -19,13 +19,7 @@
 
 namespace skizzay::fsm {
 
-struct state_transition_ambiguity : std::logic_error {
-  using logic_error::logic_error;
-};
-
 namespace basic_state_container_details_ {
-
-enum class acceptance_type { unaccepted, reentered, exited };
 
 template <typename Derived, concepts::state State>
 requires std::same_as<State, std::remove_cvref_t<State>> &&
@@ -76,35 +70,43 @@ requires std::same_as<State, std::remove_cvref_t<State>> &&
     return is_done(query);
   }
 
-  constexpr void on_entry(concepts::initial_entry_context auto &entry_context) {
-    activate(entry_context);
+  constexpr State memento() const
+      noexcept(std::is_nothrow_copy_constructible_v<State>) {
+    return state_;
   }
 
-  constexpr void on_entry(concepts::entry_context auto &entry_context) {
-    if (entry_context.template is_scheduled<state_t<Derived>>()) {
-      activate(entry_context);
+  constexpr void on_entry(concepts::state_schedule auto const &,
+                          initial_entry_event_t const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
+    activate(event, event_engine, state_provider);
+  }
+
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          concepts::event auto const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
+    if (state_schedule.template is_scheduled<state_t<Derived>>()) {
+      activate(event, event_engine, state_provider);
     }
   }
 
-  constexpr bool on_event(concepts::final_exit_event_transition_context auto
-                              &final_exit_event_context) {
-    deactivate(final_exit_event_context);
+  constexpr bool on_event(concepts::event_transition_context auto &,
+                          final_exit_event_t const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    deactivate(event, event_engine, state_provider);
     return true;
   }
 
   constexpr bool
-  on_event(concepts::event_transition_context auto &event_transition_context) {
-    switch (attempt_transitions(event_transition_context)) {
-    case acceptance_type::reentered:
-      return true;
-
-    case acceptance_type::exited:
-      deactivate(event_transition_context);
-      return true;
-
-    default:
-      return false;
-    }
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           concepts::event auto const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
+    return attempt_transitions(
+        event_transition_context, state(), event, state_provider,
+        [&]() { deactivate(event, event_engine, state_provider); });
   }
 
 private:
@@ -119,81 +121,41 @@ private:
     return *static_cast<Derived const *>(this);
   }
 
-  constexpr void activate(concepts::event_context auto &event_context) {
+  constexpr void activate(concepts::event auto const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
     if (is_active()) {
-      derived().do_reentry(event_context);
+      derived().do_reentry(event, event_engine, state_provider);
     } else {
-      derived().do_entry(event_context);
+      derived().do_entry(event, event_engine, state_provider);
       active_ = true;
     }
   }
 
-  constexpr void deactivate(concepts::event_context auto &event_context) {
+  constexpr void deactivate(concepts::event auto const &event,
+                            concepts::event_engine auto event_engine,
+                            concepts::state_provider auto state_provider) {
     assert(is_active() && "Exiting inactive state");
     active_ = false;
-    derived().do_exit(event_context);
+    derived().do_exit(event, event_engine, state_provider);
   }
 
-  constexpr void do_exit(concepts::event_context auto &event_context) {
-    exit(state(), event_context);
+  constexpr void do_exit(concepts::event auto const &event,
+                         concepts::event_engine auto &event_engine,
+                         concepts::state_provider auto &state_provider) {
+    exit(state(), event, event_engine, state_provider);
   }
 
-  constexpr void do_entry(concepts::event_context auto &event_context) {
-    enter(state(), event_context);
+  constexpr void do_entry(concepts::event auto const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    enter(state(), event, event_engine, state_provider);
   }
 
-  constexpr void do_reentry(concepts::event_context auto &event_context) {
-    reenter(state(), event_context);
-  }
-
-  constexpr concepts::transition_table auto get_transitions(
-      concepts::event_transition_context auto &event_transition_context)
-      const noexcept {
-    return event_transition_context.get_transitions(state());
-  }
-
-  constexpr bool accepts_transition(
-      concepts::transition auto const &transition,
-      concepts::event_context auto const &event_context) const noexcept {
-    return accepts(transition, state(), event_context);
-  }
-
-  constexpr acceptance_type attempt_transitions(
-      concepts::event_transition_context auto &event_transition_context) {
-    acceptance_type acceptance = acceptance_type::unaccepted;
-    auto attempt_to_transition =
-        [&]<concepts::transition Transition>(Transition &transition) {
-          if (accepts_transition(std::as_const(transition),
-                                 std::as_const(event_transition_context))) {
-            if constexpr (concepts::self_transition<Transition>) {
-              switch (acceptance) {
-              case acceptance_type::exited:
-                throw state_transition_ambiguity{
-                    "Self transition encountered but state has already exited"};
-
-              default:
-                acceptance = acceptance_type::reentered;
-              }
-            } else {
-              switch (acceptance) {
-              case acceptance_type::reentered:
-                throw state_transition_ambiguity{
-                    "State changing transition encountered but state has "
-                    "already reentered"};
-
-              default:
-                acceptance = acceptance_type::exited;
-              }
-            }
-            event_transition_context.on_transition(transition);
-          }
-        };
-    std::apply(
-        [attempt_to_transition](concepts::transition auto &...transitions) {
-          (attempt_to_transition(transitions), ...);
-        },
-        get_transitions(event_transition_context));
-    return acceptance;
+  constexpr void do_reentry(concepts::event auto const &event,
+                            concepts::event_engine auto &event_engine,
+                            concepts::state_provider auto &state_provider) {
+    reenter(state(), event, event_engine, state_provider);
   }
 };
 } // namespace basic_state_container_details_

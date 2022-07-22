@@ -40,7 +40,8 @@ SCENARIO("Event dispatching", "[unit][event-dispatcher]") {
                                    states_list<state_type>,
                                    test_objects::test_events_list<num_events>>
       initial_entry_context;
-  container.on_entry(initial_entry_context);
+  execute_initial_entry(container, initial_entry_context,
+                        initial_entry_context);
 
   GIVEN("an event dispatcher") {
     constexpr std::size_t const event_id = 0;
@@ -78,20 +79,15 @@ SCENARIO("Event posting", "[unit][event-dispatcher]") {
                                    states_list<state_type>,
                                    test_objects::test_events_list<num_events>>
       initial_entry_context;
-  container.on_entry(initial_entry_context);
+  execute_initial_entry(container, initial_entry_context,
+                        initial_entry_context);
 
   GIVEN("an event dispatcher") {
     constexpr std::size_t const event_id = 0;
     using event_type = test_objects::test_event<event_id>;
-    bool posted = false;
     std::tuple transition_table{
         simple_transition<state_type, state_type, epsilon_event_t>{},
-        action_transition_for<state_type, state_type, event_type>(
-            [&posted](concepts::event_triggered_context_for<event_type> auto
-                          &event_context) {
-              event_context.post_event(epsilon_event);
-              posted = true;
-            })};
+        simple_transition<state_type, state_type, event_type>{}};
     event_dispatcher target{std::move(transition_table), container};
 
     WHEN("a handled event is dispatched") {
@@ -99,11 +95,6 @@ SCENARIO("Event posting", "[unit][event-dispatcher]") {
 
       THEN("it has been handled") {
         REQUIRE(handled);
-        AND_THEN("epsilon event was posted") {
-          REQUIRE(1 == container.current_state<state_type>()
-                           .value()
-                           .epsilon_event_reentry_count);
-        }
       }
     }
 

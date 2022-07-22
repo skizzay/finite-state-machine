@@ -1,6 +1,7 @@
 #pragma once
 
 #include "skizzay/fsm/boolean.h"
+#include "skizzay/fsm/const_ref.h"
 #include "skizzay/fsm/states_list.h"
 
 #include <type_traits>
@@ -29,15 +30,14 @@ inline constexpr no_op_details_::impl_factory no_op = {};
 }
 
 namespace query_result_details_ {
-template<typename...> struct as_states_list;
+template <typename...> struct as_states_list;
 
 template <concepts::state... States>
 struct as_states_list<states_list<States...>> {
   using type = states_list<States...>;
 };
 
-template <concepts::state... States>
-struct as_states_list<States...> {
+template <concepts::state... States> struct as_states_list<States...> {
   using type = states_list<States...>;
 };
 } // namespace query_result_details_
@@ -61,7 +61,8 @@ template <typename F, typename... States>
 concept query = requires {
   typename query_result_t<F, States...>;
 }
-&&all_v<typename query_result_details_::as_states_list<States...>::type, curry<std::is_invocable, F>::template type>;
+&&all_v<typename query_result_details_::as_states_list<States...>::type,
+        curry<std::is_invocable, F>::template type>;
 
 template <typename F, typename... States>
 concept nothrow_query = query<F, States...> &&

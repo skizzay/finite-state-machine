@@ -76,8 +76,7 @@ SCENARIO("hierarchical state container entry",
           initial_entry_event_t, states_list_t<target_type>,
           test_objects::test_events_list<num_events>>
           entry_context;
-
-      target.on_entry(entry_context);
+      execute_initial_entry(target, entry_context, entry_context);
 
       THEN("it is active") {
         REQUIRE(target.is_active());
@@ -110,6 +109,7 @@ SCENARIO("hierarchical state container entry",
       WHEN("entered by an event transitioning to the parent only") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_entry_context<
             event_type,
             states_list<parent_state_type, child_state_type,
@@ -117,7 +117,7 @@ SCENARIO("hierarchical state container entry",
             test_objects::test_events_list<num_events>, next_states_list_type>
             entry_context;
 
-        target.on_entry(entry_context);
+        target.on_entry(entry_context, event, entry_context, entry_context);
 
         THEN("it is active") {
           REQUIRE(target.is_active());
@@ -161,6 +161,7 @@ SCENARIO("hierarchical state container entry",
       WHEN("entered by an event transitioning to the child only") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_entry_context<
             event_type,
             states_list<parent_state_type, child_state_type,
@@ -168,7 +169,7 @@ SCENARIO("hierarchical state container entry",
             test_objects::test_events_list<num_events>, next_states_list_type>
             entry_context;
 
-        target.on_entry(entry_context);
+        target.on_entry(entry_context, event, entry_context, entry_context);
 
         THEN("it is active") {
           REQUIRE(target.is_active());
@@ -213,6 +214,7 @@ SCENARIO("hierarchical state container entry",
       WHEN("entered by an event transitioning to the parent and the child") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_entry_context<
             event_type,
             states_list<parent_state_type, child_state_type,
@@ -220,7 +222,7 @@ SCENARIO("hierarchical state container entry",
             test_objects::test_events_list<num_events>, next_states_list_type>
             entry_context;
 
-        target.on_entry(entry_context);
+        target.on_entry(entry_context, event, entry_context, entry_context);
 
         THEN("it is active") {
           REQUIRE(target.is_active());
@@ -260,6 +262,7 @@ SCENARIO("hierarchical state container entry",
       WHEN("entered by an event transitioning to the parent only") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_entry_context<
             event_type,
             states_list<parent_state_type, child_state_type,
@@ -268,7 +271,7 @@ SCENARIO("hierarchical state container entry",
             states_list<parent_state_type>>
             entry_context;
 
-        target.on_entry(entry_context);
+        target.on_entry(entry_context, event, entry_context, entry_context);
 
         THEN("it is active") {
           REQUIRE(target.is_active());
@@ -308,6 +311,7 @@ SCENARIO("hierarchical state container entry",
       WHEN("entered by an event transitioning to the child only") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_entry_context<
             event_type,
             states_list<parent_state_type, child_state_type,
@@ -316,7 +320,7 @@ SCENARIO("hierarchical state container entry",
             states_list<child_state_type>>
             entry_context;
 
-        target.on_entry(entry_context);
+        target.on_entry(entry_context, event, entry_context, entry_context);
 
         THEN("it is active") {
           REQUIRE(target.is_active());
@@ -378,8 +382,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
           initial_entry_event_t, states_list_t<target_type>,
           test_objects::test_events_list<num_events>>
           entry_context;
-
-      target.on_entry(entry_context);
+      execute_initial_entry(target, entry_context, entry_context);
 
       THEN("it is active") {
         REQUIRE(target.is_active());
@@ -396,6 +399,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
       AND_WHEN("an event is raised but not handled by the container") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<external_state_type, child_state_type,
@@ -404,7 +408,9 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const handled = target.on_event(event_transition_context);
+        bool const handled =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was not handled") {
           REQUIRE_FALSE(handled);
 
@@ -425,6 +431,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
       AND_WHEN("an event triggered by the child exits the container") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<child_state_type, external_state_type,
@@ -433,7 +440,9 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("it is inactive") {
@@ -456,6 +465,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
       AND_WHEN("an event triggered by the parent exits the container") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<parent_state_type, external_state_type,
@@ -464,7 +474,9 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("it is inactive") {
@@ -492,7 +504,8 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual = execute_final_exit(target, event_transition_context,
+                                               event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
 
@@ -526,6 +539,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
       AND_WHEN("an event reeentering the parent was triggered") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<parent_state_type, parent_state_type,
@@ -534,7 +548,9 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("the child state has finally exited") {
@@ -557,7 +573,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
               states_list<parent_state_type>>
               entry_context;
 
-          target.on_entry(entry_context);
+          target.on_entry(entry_context, event, entry_context, entry_context);
           THEN("the parent was event reentered") {
             REQUIRE(1 == target.current_state<parent_state_type>()
                              .value()
@@ -575,6 +591,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
       AND_WHEN("an event reeentering the child was triggered") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<child_state_type, child_state_type,
@@ -583,7 +600,9 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("the child state has not exited") {
@@ -605,7 +624,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
               states_list<child_state_type>>
               entry_context;
 
-          target.on_entry(entry_context);
+          target.on_entry(entry_context, event, entry_context, entry_context);
           THEN("the parent was not reentered") {
             REQUIRE(0 == target.current_state<parent_state_type>()
                              .value()
@@ -624,6 +643,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
                "triggered") {
         constexpr std::size_t const event_id = 0;
         using event_type = test_objects::test_event<event_id>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<child_state_type, parent_state_type,
@@ -632,7 +652,9 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("the child state was event exited") {
@@ -655,7 +677,7 @@ SCENARIO("hierarchical state container event handling and subsequent entry",
               states_list<parent_state_type>>
               entry_context;
 
-          target.on_entry(entry_context);
+          target.on_entry(entry_context, event, entry_context, entry_context);
           THEN("the parent was reentered") {
             REQUIRE(1 == target.current_state<parent_state_type>()
                              .value()
@@ -681,8 +703,8 @@ SCENARIO("hierarchical state container querying",
         initial_entry_event_t, test_objects::test_states_list<num_events, 2>,
         test_objects::test_events_list<num_events>>
         initial_entry_context;
-    target.on_entry(initial_entry_context);
-
+    execute_initial_entry(target, initial_entry_context, initial_entry_context);
+    
     WHEN("queried that is done after visiting parent") {
       test_objects::test_query<length_v<states_list_t<target_type>>> query{
           parent_id};

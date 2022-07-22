@@ -25,7 +25,9 @@ concept state_in = is_state_in<State, StatesList>::value;
 } // namespace concepts
 
 template <concepts::state State, concepts::states_list StatesList>
-struct is_state_in<State, StatesList> : contains<map_t<StatesList, std::remove_cvref_t>, std::remove_cvref_t<State>> {};
+struct is_state_in<State, StatesList>
+    : contains<map_t<StatesList, std::remove_cvref_t>,
+               std::remove_cvref_t<State>> {};
 
 template <typename> struct basic_states_list_t;
 
@@ -61,6 +63,11 @@ requires concepts::states_list<typename basic_current_states_list_t<T>::type> &&
     (!requires { typename T::current_states_list_type; }) struct impl<T> {
   using type = typename basic_current_states_list_t<T>::type;
 };
+
+template <typename T>
+requires std::is_reference_v<T>
+struct impl<T> : impl<std::remove_reference_t<T>> {
+};
 } // namespace current_states_list_t_details_
 
 template <typename T>
@@ -85,6 +92,8 @@ requires concepts::states_list<typename basic_next_states_list_t<T>::type> &&
     (!requires { typename T::next_states_list_type; }) struct impl<T> {
   using type = typename basic_next_states_list_t<T>::type;
 };
+
+template <typename T> struct impl<T &> : impl<std::remove_cvref_t<T>> {};
 } // namespace next_states_list_t_details_
 
 template <typename T>
@@ -97,4 +106,37 @@ requires(!requires { typename T::states_list_type; }) && requires {
 }
 struct basic_states_list_t<T>
     : unique<concat_t<current_states_list_t<T>, next_states_list_t<T>>> {};
+
+template <concepts::state State, typename T>
+requires std::is_reference_v<T>
+struct is_state_in<State, T> : is_state_in<State, std::remove_reference_t<T>> {
+};
+
+template <concepts::state State, typename T>
+requires requires { typename states_list_t<T>; }
+struct is_state_in<State, T>
+    : contains<map_t<states_list_t<T>, std::remove_cvref_t>,
+               std::remove_cvref_t<State>> {};
+
+template <concepts::state State, typename T>
+requires std::is_reference_v<T>
+struct is_current_state_in<State, T>
+    : is_current_state_in<State, std::remove_reference_t<T>> {
+};
+
+template <concepts::state State, typename T>
+requires requires { typename current_states_list_t<T>; }
+struct is_current_state_in<State, T>
+    : contains<std::remove_cvref_t<State>, current_states_list_t<T>> {};
+
+template <concepts::state State, typename T>
+requires std::is_reference_v<T>
+struct is_next_state_in<State, T>
+    : is_next_state_in<State, std::remove_reference_t<T>> {
+};
+
+template <concepts::state State, typename T>
+requires requires { typename next_states_list_t<T>; }
+struct is_next_state_in<State, T>
+    : contains<std::remove_cvref_t<State>, next_states_list_t<T>> {};
 } // namespace skizzay::fsm

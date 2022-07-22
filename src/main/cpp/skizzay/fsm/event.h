@@ -44,4 +44,13 @@ struct basic_event_t<T> {
   using type = typename T::event_type;
 };
 
+template <typename T>
+requires requires(T const &tc) {
+  { tc.event() }
+  noexcept->concepts::event;
+} && (!requires { typename T::event_type; })
+struct basic_event_t<T> {
+  using type = std::remove_cvref_t<decltype(std::declval<T const &>().event())>;
+};
+
 } // namespace skizzay::fsm

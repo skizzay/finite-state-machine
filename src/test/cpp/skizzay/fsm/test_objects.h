@@ -124,13 +124,12 @@ struct fake_event_engine {
 template <skizzay::fsm::concepts::event Event,
           skizzay::fsm::concepts::states_list StatesList>
 struct fake_context {
-  using event_type = Event;
   using states_list_type = StatesList;
 
-  event_type e;
+  Event e;
   skizzay::fsm::as_container_t<states_list_type, std::tuple> states;
 
-  constexpr event_type const &event() const noexcept { return e; }
+  constexpr Event const &event() const noexcept { return e; }
 
   template <skizzay::fsm::concepts::state_in<states_list_type> State>
   constexpr State &state() noexcept {
@@ -157,9 +156,11 @@ struct fake_event_transition_context : fake_event_engine<EventsList>,
 
   [[no_unique_address]] transition_table_type transition_table;
 
-  constexpr void on_transition(
-      skizzay::fsm::concepts::transition_in<transition_table_type> auto
-          &) noexcept {}
+  template <
+      skizzay::fsm::concepts::transition_in<transition_table_type> Transition>
+  constexpr void
+  on_transition(Transition const &,
+                skizzay::fsm::event_t<Transition> const &) noexcept {}
 
   constexpr skizzay::fsm::concepts::transition_table auto
   get_transitions(skizzay::fsm::concepts::state_in<states_list_type> auto const

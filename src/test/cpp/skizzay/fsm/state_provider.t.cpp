@@ -79,8 +79,7 @@ TEST_CASE("missing immutable state is not a state provider",
 TEST_CASE("valid state provider is a state provider",
           "[unit][state_provider]") {
   REQUIRE(concepts::states_list<states_list_t<valid_state_provider>>);
-  REQUIRE(
-      state_provider_details_::template_member_function<valid_state_provider>::
-          template state<test_objects::test_state<0, 1>>::value);
+  REQUIRE(state_provider_details_::template_state_member_function<
+          valid_state_provider, test_objects::test_state<0, 1>>::value);
   REQUIRE(concepts::state_provider<valid_state_provider>);
 }

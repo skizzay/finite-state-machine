@@ -16,10 +16,15 @@ namespace concepts {
 template <typename T>
 concept transition_table = is_transition_table<T>::value;
 
+template <typename T>
+concept root_transition_table =
+    transition_table<T> && std::same_as<T, map_t<T, std::remove_cvref_t>>;
+
 template <typename Transition, typename TransitionTable>
 concept transition_in = transition<std::remove_cvref_t<Transition>> &&
     transition_table<TransitionTable> &&
-    contains_v<map_t<TransitionTable, std::remove_cvref_t>, Transition>;
+    contains_v<map_t<TransitionTable, std::remove_cvref_t>,
+               std::remove_cvref_t<Transition>>;
 
 template <typename Transition, typename TransitionTable>
 concept self_transition_in =
@@ -92,10 +97,6 @@ template <typename T>
 requires requires { typename transition_table_t<T>; }
 struct basic_next_states_list_t<T>
     : basic_next_states_list_t<transition_table_t<T>> {};
-
-template <concepts::state State, concepts::transition_table TransitionTable>
-struct is_state_in<State, TransitionTable> : contains<states_list_t<TransitionTable>, State> {
-};
 
 namespace transition_table_details_ {
 template <concepts::event Event, concepts::state State,

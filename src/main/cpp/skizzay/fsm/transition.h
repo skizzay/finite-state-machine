@@ -4,6 +4,7 @@
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/events_list.h"
 #include "skizzay/fsm/state.h"
+#include "skizzay/fsm/states_list.h"
 
 #include <concepts>
 #include <type_traits>
@@ -19,7 +20,8 @@ concept transition = requires {
 
 template <typename T>
 concept self_transition =
-    transition<T> && std::same_as<current_state_t<T>, next_state_t<T>>;
+    transition<T> && std::same_as<current_state_t<std::remove_cvref_t<T>>,
+                                  next_state_t<std::remove_cvref_t<T>>>;
 } // namespace concepts
 
 template <concepts::event Event, concepts::transition Transition>

@@ -76,8 +76,7 @@ SCENARIO("flat state container handling events",
           initial_entry_event_t, states_list_t<target_type>,
           test_objects::test_events_list<num_events>>
           entry_context;
-
-      target.on_entry(entry_context);
+      execute_initial_entry(target, entry_context, entry_context);
 
       THEN("it is active") {
         REQUIRE(target.is_active());
@@ -112,7 +111,8 @@ SCENARIO("flat state container handling events",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual = execute_final_exit(target, event_transition_context,
+                                               event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
 
@@ -141,6 +141,7 @@ SCENARIO("flat state container handling events",
 
       AND_WHEN("an event transitions to an external state") {
         using event_type = test_objects::test_event<0>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<target_test_state<0>,
@@ -148,7 +149,9 @@ SCENARIO("flat state container handling events",
             test_objects::test_states_list<num_events, 3>,
             test_objects::test_events_list<num_events>>
             event_transition_context;
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
           AND_THEN("it is not active") {
@@ -174,6 +177,7 @@ SCENARIO("flat state container handling events",
 
       AND_WHEN("the active state does not trigger a transition") {
         using event_type = test_objects::test_event<0>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<target_test_state<1>,
@@ -182,7 +186,9 @@ SCENARIO("flat state container handling events",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was not handled") {
           REQUIRE_FALSE(actual);
           AND_THEN("it is active") {
@@ -194,6 +200,7 @@ SCENARIO("flat state container handling events",
 
       AND_WHEN("the active state transitions to the inactive state") {
         using event_type = test_objects::test_event<0>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<target_test_state<0>,
@@ -202,7 +209,9 @@ SCENARIO("flat state container handling events",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
 
@@ -218,7 +227,7 @@ SCENARIO("flat state container handling events",
                 states_list<target_test_state<1>>>
                 entry_context;
 
-            target.on_entry(entry_context);
+            target.on_entry(entry_context, event, entry_context, entry_context);
 
             THEN("it is active") {
               REQUIRE(target.is_active());
@@ -236,6 +245,7 @@ SCENARIO("flat state container handling events",
 
       AND_WHEN("the active state self transitions") {
         using event_type = test_objects::test_event<0>;
+        event_type event;
         test_objects::fake_event_transition_context<
             event_type,
             std::tuple<simple_transition<target_test_state<0>,
@@ -244,7 +254,9 @@ SCENARIO("flat state container handling events",
             test_objects::test_events_list<num_events>>
             event_transition_context;
 
-        bool const actual = target.on_event(event_transition_context);
+        bool const actual =
+            target.on_event(event_transition_context, event,
+                            event_transition_context, event_transition_context);
         THEN("the event was handled") {
           REQUIRE(actual);
 
@@ -260,7 +272,7 @@ SCENARIO("flat state container handling events",
                 states_list<target_test_state<0>>>
                 entry_context;
 
-            target.on_entry(entry_context);
+            target.on_entry(entry_context, event, entry_context, entry_context);
 
             THEN("it is active") {
               REQUIRE(target.is_active());
@@ -294,7 +306,7 @@ SCENARIO("flat state container querying",
         initial_entry_event_t, test_objects::test_states_list<num_events, 2>,
         test_objects::test_events_list<num_events>>
         initial_entry_context;
-    target.on_entry(initial_entry_context);
+    execute_initial_entry(target, initial_entry_context, initial_entry_context);
 
     WHEN("queried that is done after visiting first container") {
       test_objects::test_query<length_v<states_list_t<target_type>>> query{0};
@@ -326,15 +338,19 @@ SCENARIO("flat state container querying",
       }
     }
   }
-  GIVEN("an active flat state container with second state container as active") {
+  GIVEN(
+      "an active flat state container with second state container as active") {
     using target_type = flat_states<single_state<target_test_state<0>>,
                                     single_state<target_test_state<1>>>;
     target_type target;
+    test_objects::test_event<0> event;
     test_objects::fake_entry_context<
-        test_objects::test_event<0>, test_objects::test_states_list<num_events, 2>,
-        test_objects::test_events_list<num_events>, states_list<target_test_state<1>>>
+        test_objects::test_event<0>,
+        test_objects::test_states_list<num_events, 2>,
+        test_objects::test_events_list<num_events>,
+        states_list<target_test_state<1>>>
         entry_context;
-    target.on_entry(entry_context);
+    target.on_entry(entry_context, event, entry_context, entry_context);
 
     WHEN("queried that is done after visiting second container") {
       test_objects::test_query<length_v<states_list_t<target_type>>> query{1};

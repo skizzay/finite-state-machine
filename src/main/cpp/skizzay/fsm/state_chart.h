@@ -1,12 +1,14 @@
 #pragma once
 
-#include "skizzay/fsm/event_dispatcher.h"
+#include "skizzay/fsm/event_transition_context_root.h"
 #include "skizzay/fsm/events_list.h"
+#include "skizzay/fsm/internal_event_engine.h"
 #include "skizzay/fsm/optional_reference.h"
 #include "skizzay/fsm/query.h"
+#include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/states_list.h"
+#include "skizzay/fsm/task_queue.h"
 #include "skizzay/fsm/transition_table.h"
-#include "skizzay/fsm/types.h"
 
 #include <tuple>
 #include <type_traits>
@@ -16,32 +18,30 @@ namespace state_chart_details_ {
 enum class status { stopped, stopping, starting, running };
 } // namespace state_chart_details_
 
-template <concepts::state_container RootStateContainer,
-          concepts::transition_table TransitionTable>
-requires contains_all_v<states_list_t<RootStateContainer>,
-                        states_list_t<TransitionTable>> &&
-    (length_v<states_list_t<RootStateContainer>> ==
-     length_v<states_list_t<TransitionTable>>)struct state_chart {
-  using transition_table_type = map_t<TransitionTable, std::remove_cvref_t>;
+template <
+    concepts::root_transition_table RootTransitionTable,
+    concepts::root_state_container<RootTransitionTable> RootStateContainer>
+struct state_chart {
+  using transition_table_type = RootTransitionTable;
 
   constexpr explicit state_chart(
-      RootStateContainer &&root_state_container,
-      transition_table_type
-          transition_table) noexcept(std::
-                                         is_nothrow_move_constructible_v<
-                                             transition_table_type>)
-      : root_state_container_{std::forward<RootStateContainer>(
-            root_state_container)},
-        event_dispatcher_{std::move_if_noexcept(transition_table),
-                          root_state_container_},
+      transition_table_type transition_table,
+      RootStateContainer
+          root_state_container) noexcept(std::
+                                             is_nothrow_move_constructible_v<
+                                                 transition_table_type> &&std::
+                                                 is_nothrow_move_constructible_v<
+                                                     RootStateContainer>)
+      : root_transition_table_{std::move(transition_table)},
+        root_state_container_{std::move(root_state_container)},
         status_{state_chart_details_::status::stopped} {}
 
-        // TODO: Determine if we should stop the state chart in the constructor if it is still running
+  // TODO: Determine if we should stop the state chart in the destructor if it
+  // is still running
 
-  template <concepts::event_in<transition_table_type> Event>
-  constexpr bool on(Event &&event) {
-    return is_running() &&
-           event_dispatcher_.dispatch_event(std::forward<Event>(event));
+  constexpr bool
+  on(concepts::event_in<transition_table_type> auto const &event) {
+    return is_running() && handle_event(event);
   }
 
   template <
@@ -65,10 +65,15 @@ requires contains_all_v<states_list_t<RootStateContainer>,
     }
   }
 
+  constexpr auto memento() const
+      noexcept(is_memento_nothrow_v<RootStateContainer>) {
+    return root_state_container_.memento();
+  }
+
   constexpr void start() {
     if (state_chart_details_::status::stopped == status_) {
       status_ = state_chart_details_::status::starting;
-      event_dispatcher_.dispatch_event(initial_entry_event);
+      handle_event(initial_entry_event);
       status_ = state_chart_details_::status::running;
     }
   }
@@ -76,7 +81,7 @@ requires contains_all_v<states_list_t<RootStateContainer>,
   constexpr void stop() {
     if (state_chart_details_::status::running == status_) {
       status_ = state_chart_details_::status::stopping;
-      event_dispatcher_.dispatch_event(final_exit_event);
+      handle_event(final_exit_event);
       status_ = state_chart_details_::status::stopped;
     }
   }
@@ -90,14 +95,51 @@ requires contains_all_v<states_list_t<RootStateContainer>,
   }
 
 private:
+  [[no_unique_address]] transition_table_type root_transition_table_;
   RootStateContainer root_state_container_;
-  event_dispatcher<transition_table_type, RootStateContainer> event_dispatcher_;
+  // Oh the irony... we need this to track the state machine's state.
   state_chart_details_::status status_;
+
+  constexpr bool handle_event(concepts::event auto const &event) {
+    task_queue q;
+    event_transition_context_root transition_context{
+        get_transition_table_for(root_transition_table_, event)};
+    internal_event_engine event_engine{root_transition_table_,
+                                       root_state_container_, q};
+
+    if (root_state_container_.on_event(transition_context, event, event_engine,
+                                       root_state_container_)) {
+      root_state_container_.on_entry(transition_context.state_schedule(), event,
+                                     event_engine, root_state_container_);
+      q.run();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  template <
+      concepts::event_in<events_list<initial_entry_event_t, final_exit_event_t>>
+          Event>
+  constexpr void handle_event(Event const &) {
+    task_queue q;
+    internal_event_engine event_engine{root_transition_table_,
+                                       root_state_container_, q};
+    if constexpr (std::same_as<Event, initial_entry_event_t>) {
+      execute_initial_entry(root_state_container_, event_engine,
+                            root_state_container_);
+    } else {
+      execute_final_exit(root_state_container_, event_engine,
+                         root_state_container_);
+    }
+    q.run();
+  }
 };
 
-template <concepts::state_container RootStateContainer,
-          concepts::transition_table TransitionTable>
-state_chart(RootStateContainer &&, TransitionTable &&) -> state_chart<
-    std::remove_reference_t<RootStateContainer>,
-    std::remove_reference_t<map_t<TransitionTable, std::remove_cvref_t>>>;
+template <
+    concepts::root_transition_table RootTransitionTable,
+    concepts::root_state_container<RootTransitionTable> RootStateContainer>
+state_chart(RootTransitionTable &&, RootStateContainer &&)
+    -> state_chart<std::remove_reference_t<RootTransitionTable>,
+                   std::remove_reference_t<RootStateContainer>>;
 } // namespace skizzay::fsm

@@ -38,7 +38,6 @@ event_provider<final_exit_event_t>::get() noexcept {
 template <concepts::state_provider StateProvider,
           concepts::event_engine EventEngine, concepts::event Event>
 struct context_wrapper {
-  using event_type = std::remove_cvref_t<Event>;
   using events_list_type = events_list_t<EventEngine>;
   using states_list_type = states_list_t<StateProvider>;
   using transition_table_type = std::tuple<>;
@@ -47,8 +46,8 @@ struct context_wrapper {
                                      EventEngine &event_engine) noexcept
       : state_provider_{state_provider}, event_engine_{event_engine} {}
 
-  constexpr event_type const &event() const noexcept {
-    return event_provider<event_type>::get();
+  constexpr add_cref_t<Event> event() const noexcept {
+    return event_provider<std::remove_cvref_t<Event>>::get();
   }
 
   template <concepts::state_in<states_list_type> State>
@@ -61,9 +60,9 @@ struct context_wrapper {
     return state_provider_.template state<State>();
   }
 
-  constexpr void
-  post_event(concepts::event_in<events_list_type> auto const &event) {
-    event_engine_.post_event(event);
+  template <concepts::event_in<events_list_type> PostEvent>
+  constexpr void post_event(PostEvent &&event) {
+    event_engine_.post_event(std::forward<PostEvent>(event));
   }
 
   constexpr std::tuple<>
@@ -74,6 +73,39 @@ struct context_wrapper {
 private:
   StateProvider &state_provider_;
   EventEngine &event_engine_;
+};
+
+template <concepts::event_engine Impl> struct event_engine_wrapper {
+  using events_list_type = events_list_t<Impl>;
+
+  constexpr explicit event_engine_wrapper(Impl &impl) noexcept : impl_{impl} {}
+
+  constexpr void post_event(concepts::event_in<events_list_type> auto &&event) {
+    impl_.post_event(std::forward<decltype(event)>(event));
+  }
+
+private:
+  Impl &impl_;
+};
+
+template <concepts::state_provider Impl> struct state_provider_wrapper {
+  using states_list_type = states_list_t<Impl>;
+
+  constexpr explicit state_provider_wrapper(Impl &impl) noexcept
+      : impl_{impl} {}
+
+  template <concepts::state_in<states_list_type> State>
+  constexpr State &state() noexcept {
+    return impl_.template state<State>();
+  }
+
+  template <concepts::state_in<states_list_type> State>
+  constexpr State const &state() const noexcept {
+    return impl_.template state<State>();
+  }
+
+private:
+  Impl &impl_;
 };
 } // namespace event_dispatcher_details_
 
@@ -152,10 +184,11 @@ private:
     entry_state_scheduler<next_states_list_type> scheduler;
     event_context_root event_context{event, *this, root_state_container_,
                                      transition_table_, scheduler};
-    if (root_state_container_.on_event(event_context)) {
-      entry_context_root entry_context{event, *this, root_state_container_,
-                                       scheduler};
-      root_state_container_.on_entry(entry_context);
+    if (root_state_container_.on_event(event_context, event, *this,
+                                       root_state_container_)) {
+      root_state_container_.on_entry(scheduler, event, *this,
+
+                                     root_state_container_);
       return true;
     } else {
       return false;

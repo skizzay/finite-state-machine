@@ -23,12 +23,7 @@ template <concepts::event Event> struct fake_event_triggered_context {
 
 template <concepts::state CurrentState, concepts::state NextState,
           concepts::event Event, typename Action>
-requires std::invocable<Action, add_cref_t<Event>> ||
-    std::invocable<Action,
-                   std::add_lvalue_reference_t<
-                       action_transition_details_::fake_event_triggered_context<
-                           std::remove_cvref_t<Event>>>> ||
-    std::invocable<Action>
+requires std::invocable<Action, add_cref_t<Event>> || std::invocable<Action>
 struct action_transition {
   using current_state_type = std::remove_cvref_t<CurrentState>;
   using next_state_type = std::remove_cvref_t<NextState>;
@@ -44,38 +39,14 @@ struct action_transition {
     std::invoke(action_, event);
   }
 
-  template <concepts::event_triggered_context_for<event_type> EventContext>
-  constexpr void on_triggered(EventContext &event_context) noexcept(
-      std::is_nothrow_invocable_v<Action, EventContext &>) requires
-      std::invocable<Action, EventContext &> {
-    std::invoke(action_, event_context);
-  }
-
-  template <concepts::event_triggered_context_for<event_type> EventContext>
-  constexpr void on_triggered(EventContext &) noexcept(
-      std::is_nothrow_invocable_v<
-          Action, EventContext &>) requires(std::invocable<Action> &&
-                                            !std::invocable<Action,
-                                                            EventContext &>) {
+  constexpr void on_triggered(event_type const &) noexcept(
+      std::is_nothrow_invocable_v<Action>) requires
+      std::invocable<Action> {
     std::invoke(action_);
   }
 
 private : [[no_unique_address]] Action action_;
 };
-
-template <concepts::state CurrentState, concepts::state NextState,
-          concepts::event Event,
-          std::invocable<std::add_lvalue_reference_t<
-              action_transition_details_::fake_event_triggered_context<
-                  std::remove_cvref_t<Event>>>>
-              Action>
-constexpr action_transition<CurrentState, NextState, Event, Action>
-action_transition_for(Action &&action) noexcept(
-    std::is_nothrow_constructible_v<
-        action_transition<CurrentState, NextState, Event, Action>>) {
-  return action_transition<CurrentState, NextState, Event, Action>{
-      std::forward<Action>(action)};
-}
 
 template <concepts::state CurrentState, concepts::state NextState,
           concepts::event Event, std::invocable<add_cref_t<Event>> Action>

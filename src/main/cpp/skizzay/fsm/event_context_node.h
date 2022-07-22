@@ -13,50 +13,54 @@
 namespace skizzay::fsm {
 
 namespace event_context_node_details_ {
-template <typename> struct template_member_function {
-  template <typename> struct schedule_entry : std::false_type {};
-};
-
-template <typename T> template <concepts::state State>
+template <typename, typename>
+struct schedule_entry_template_member_function : std::false_type {};
+template <typename T, concepts::state State>
 requires requires(T &t) { t.template schedule_entry<State>(); }
-struct template_member_function<T>::schedule_entry<State> : std::true_type {};
+struct schedule_entry_template_member_function<T, State> : std::true_type {};
 
 } // namespace event_context_node_details_
 
-template <concepts::state_container StateContainer,
-          concepts::event_context ParentEventContext>
+template <concepts::event_transition_context ParentEventTransitionContext,
+          concepts::states_list StatesList>
 requires all_v<
-    next_states_list_t<ParentEventContext>,
-    event_context_node_details_::template_member_function<
-        ParentEventContext>::template schedule_entry> struct event_context_node
-    : ParentEventContext {
-  using ParentEventContext::event_type;
-  using ParentEventContext::events_list_type;
-  using ParentEventContext::states_list_type;
-  using ParentEventContext::transition_table_type;
+    next_states_list_t<ParentEventTransitionContext>,
+    curry<
+        event_context_node_details_::schedule_entry_template_member_function,
+        ParentEventTransitionContext>::template type> struct event_context_node
+    : ParentEventTransitionContext {
+  using ParentEventTransitionContext::states_list_type;
+  using ParentEventTransitionContext::transition_table_type;
+
+  using ParentEventTransitionContext::ParentEventTransitionContext;
 
   constexpr explicit event_context_node(
-      StateContainer &state_container,
-      ParentEventContext &parent_event_context) noexcept
-      : ParentEventContext{parent_event_context}, state_container_{
-                                                      state_container} {}
+      ParentEventTransitionContext const &
+          parent_event_transition_context) noexcept(std::
+                                                        is_nothrow_copy_constructible_v<
+                                                            ParentEventTransitionContext>)
+      : ParentEventTransitionContext(parent_event_transition_context) {}
 
-  template <concepts::self_transition_in<transition_table_t<ParentEventContext>>
+  template <concepts::self_transition_in<
+      transition_table_t<ParentEventTransitionContext>>
                 Transition>
-  constexpr void on_transition(Transition &transition) {
+  constexpr void on_transition(Transition &transition,
+                               event_t<Transition> const &event) {
     scheduled_ = true;
-    trigger(transition, *this);
+    trigger(transition, event);
     this->template schedule_entry<next_state_t<Transition>>();
   }
 
-  template <concepts::transition_in<transition_table_t<ParentEventContext>>
-                Transition>
-  constexpr void on_transition(Transition &transition) {
+  template <
+      concepts::transition_in<transition_table_t<ParentEventTransitionContext>>
+          Transition>
+  constexpr void on_transition(Transition &transition,
+                               event_t<Transition> const &event) {
     scheduled_ = true;
-    exiting_container_ = will_exit_container() ||
-                         !concepts::state_in<next_state_t<Transition>,
-                                            states_list_t<StateContainer>>;
-    ParentEventContext::on_transition(transition);
+    exiting_container_ =
+        will_exit_container() ||
+        !concepts::state_in<next_state_t<Transition>, StatesList>;
+    ParentEventTransitionContext::on_transition(transition, event);
   }
 
   constexpr bool has_been_scheduled() const noexcept { return scheduled_; }
@@ -66,7 +70,6 @@ requires all_v<
   }
 
 private:
-  StateContainer &state_container_;
   bool scheduled_ = false;
   bool exiting_container_ = false;
 };
