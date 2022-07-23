@@ -2,7 +2,6 @@
 
 #include "skizzay/fsm/accepts.h"
 #include "skizzay/fsm/enter.h"
-#include "skizzay/fsm/entry_context.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/exit.h"
 #include "skizzay/fsm/is_done.h"

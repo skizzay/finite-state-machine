@@ -6,11 +6,10 @@ set_property(TARGET fsm_unit_tests PROPERTY CXX_STANDARD 20)
 target_include_directories(fsm_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/main/cpp)
 target_sources(fsm_unit_tests PRIVATE
   skizzay/fsm/event.t.cpp
-  # skizzay/fsm/event_context_root.t.cpp
+  skizzay/fsm/event_context_root.t.cpp
   skizzay/fsm/event_transition_context.t.cpp
   skizzay/fsm/event_engine.t.cpp
   skizzay/fsm/event_handler.t.cpp
-  # skizzay/fsm/event_dispatcher.t.cpp
   skizzay/fsm/event_provider.t.cpp
   skizzay/fsm/flat_state_container.t.cpp
   skizzay/fsm/hierarchical_state_container.t.cpp
