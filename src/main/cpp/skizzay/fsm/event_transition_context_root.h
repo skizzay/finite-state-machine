@@ -2,6 +2,8 @@
 
 #include "skizzay/fsm/entry_state_scheduler.h"
 #include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/state_schedule.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/transition_table.h"
 #include "skizzay/fsm/trigger.h"

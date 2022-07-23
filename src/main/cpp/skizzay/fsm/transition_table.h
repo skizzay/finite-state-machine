@@ -20,6 +20,10 @@ template <typename T>
 concept root_transition_table =
     transition_table<T> && std::same_as<T, map_t<T, std::remove_cvref_t>>;
 
+template <typename T>
+concept event_node_transition_table = transition_table<T> &&
+    std::same_as<T, map_t<T, std::add_lvalue_reference_t>>;
+
 template <typename Transition, typename TransitionTable>
 concept transition_in = transition<std::remove_cvref_t<Transition>> &&
     transition_table<TransitionTable> &&
@@ -115,7 +119,8 @@ concept current_state_in =
 
 template <concepts::event Event, concepts::transition_table TransitionTable>
 struct is_event_in<Event, TransitionTable>
-    : any<TransitionTable, curry<is_event_in, Event>::template type> {};
+    : any<map_t<TransitionTable, std::remove_cvref_t>,
+          curry<is_event_in, Event>::template type> {};
 
 template <concepts::event Event, typename T>
 requires requires { typename transition_table_t<T>; }

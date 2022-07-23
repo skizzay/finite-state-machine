@@ -3,7 +3,6 @@
 
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/type_list.h"
-#include "skizzay/fsm/types.h"
 #include "test_objects.h"
 
 #include <catch2/catch.hpp>

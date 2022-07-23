@@ -251,15 +251,14 @@ execute_final_exit(concepts::state_container auto &state_container,
                                   event_engine, state_provider);
 }
 
-template <concepts::transition_table TransitionTable,
+template <concepts::root_transition_table TransitionTable,
           concepts::event_in<TransitionTable> Event>
 constexpr concepts::transition_table auto
 get_transition_table_for(TransitionTable &transition_table,
                          Event const &) noexcept {
-  using transitions_list_type =
-      as_container_t<filter_t<map_t<TransitionTable, std::remove_cvref_t>,
-                              curry<is_event_in, Event>::template type>,
-                     simple_type_list>;
+  using transitions_list_type = as_container_t<
+      filter_t<TransitionTable, curry<is_event_in, Event>::template type>,
+      simple_type_list>;
 
   return []<concepts::transition... Transitions>(
       TransitionTable & transition_table,
@@ -269,7 +268,7 @@ get_transition_table_for(TransitionTable &transition_table,
   (transition_table, transitions_list_type{});
 }
 
-template <concepts::transition_table TransitionTable,
+template <concepts::event_node_transition_table TransitionTable,
           concepts::state_in<current_states_list_t<TransitionTable>> State>
 constexpr concepts::transition_table auto
 get_transition_table_for(TransitionTable &transition_table,

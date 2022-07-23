@@ -4,10 +4,10 @@
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/state.h"
 #include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/state_containers_list.h"
 #include "skizzay/fsm/state_schedule.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/type_list.h"
-#include "skizzay/fsm/types.h"
 
 #include <algorithm>
 #include <bitset>

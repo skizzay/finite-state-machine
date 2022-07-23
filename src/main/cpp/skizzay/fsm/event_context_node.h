@@ -6,7 +6,6 @@
 #include "skizzay/fsm/transition_table.h"
 #include "skizzay/fsm/trigger.h"
 #include "skizzay/fsm/type_list.h"
-#include "skizzay/fsm/types.h"
 
 #include <tuple>
 

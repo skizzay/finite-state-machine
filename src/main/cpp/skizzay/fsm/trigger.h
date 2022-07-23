@@ -2,7 +2,6 @@
 
 #include "skizzay/fsm/event.h"
 #include "skizzay/fsm/transition.h"
-#include "skizzay/fsm/types.h"
 
 #include <concepts>
 

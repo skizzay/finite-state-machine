@@ -8,7 +8,7 @@
 #include "skizzay/fsm/optional_reference.h"
 #include "skizzay/fsm/reenter.h"
 #include "skizzay/fsm/state.h"
-#include "skizzay/fsm/types.h"
+#include "skizzay/fsm/state_container.h"
 
 #include <cassert>
 #include <concepts>
