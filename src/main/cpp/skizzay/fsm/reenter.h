@@ -1,100 +1,83 @@
 #pragma once
 
-#include <skizzay/fsm/concepts.h>
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/event_engine.h"
+#include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_provider.h"
 
 namespace skizzay::fsm {
 
 namespace reenter_fn_details_ {
-template <typename State, typename Machine, typename Event>
-void on_reentry(State &, Machine &, Event const &) = delete;
-template <typename State, typename Event>
-void on_reentry(State &, Event const &) = delete;
-template <typename State, typename Machine>
-void on_reentry(State &, Machine &) = delete;
-template <typename State> void on_reentry(State &) = delete;
+template <typename... Ts> void on_reentry(Ts const &...) = delete;
 
 struct reenter_fn final {
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state, Machine &machine, Event const &event) {
-    state.on_reentry(machine, event);
+  template <concepts::state State, concepts::event Event,
+            concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  constexpr void operator()(State &, Event const &, EventEngine &,
+                            StateProvider &) const noexcept {}
+
+  template <concepts::state State, concepts::event Event,
+            concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  requires requires(State &s, Event const &e, EventEngine &ee,
+                    StateProvider &sp) {
+    s.on_reentry(e, ee, sp);
   }
-  constexpr void operator()(State &state, Machine &machine,
-                            Event const &event) const
-      noexcept(noexcept(state.on_reentry(machine, event))) {
-    state.on_reentry(machine, event);
+  constexpr void operator()(State &state, Event const &event,
+                            EventEngine &event_engine,
+                            StateProvider &state_provider) const {
+    state.on_reentry(event, event_engine, state_provider);
   }
 
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state, Machine &machine, Event const &event) {
-    on_reentry(state, machine, event);
-  }
-  constexpr void operator()(State &state, Machine &machine,
-                            Event const &event) const
-      noexcept(noexcept(on_reentry(state, machine, event))) {
-    on_reentry(state, machine, event);
-  }
-
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state, Event const &event) {
-    state.on_reentry(event);
-  }
-  constexpr void operator()(State &state, Machine &, Event const &event) const
-      noexcept(noexcept(state.on_reentry(event))) {
+  template <concepts::state State, concepts::event Event,
+            concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  requires requires(State &s, Event const &e) { s.on_reentry(e); }
+  constexpr void operator()(State &state, Event const &event, EventEngine &,
+                            StateProvider &) const {
     state.on_reentry(event);
   }
 
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state, Event const &event) {
-    on_reentry(state, event);
-  }
-  constexpr void operator()(State &state, Machine &, Event const &event) const
-      noexcept(noexcept(on_reentry(state, event))) {
-    on_reentry(state, event);
-  }
-
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state, Machine &machine) {
-    state.on_reentry(machine);
-  }
-  constexpr void operator()(State &state, Machine &machine, Event const &) const
-      noexcept(noexcept(state.on_reentry(machine))) {
-    state.on_reentry(machine);
-  }
-
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state, Machine &machine) {
-    on_reentry(state, machine);
-  }
-  constexpr void operator()(State &state, Machine &machine, Event const &) const
-      noexcept(noexcept(on_reentry(state, machine))) {
-    on_reentry(state, machine);
-  }
-
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state) { state.on_reentry(); }
-  constexpr void operator()(State &state, Machine &, Event const &) const
-      noexcept(noexcept(state.on_reentry())) {
+  template <concepts::state State, concepts::event Event,
+            concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  requires requires(State &s) { s.on_reentry(); }
+  constexpr void operator()(State &state, Event const &, EventEngine &,
+                            StateProvider &) const {
     state.on_reentry();
   }
 
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  requires requires(State &state) { on_reentry(state); }
-  constexpr void operator()(State &state, Machine &, Event const &) const
-      noexcept(noexcept(on_reentry(state))) {
-    on_reentry(state);
+  template <concepts::state State, concepts::event Event,
+            concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  requires requires(State &s, Event const &e, EventEngine &ee,
+                    StateProvider &sp) {
+    on_reentry(s, e, ee, sp);
+  }
+  constexpr void operator()(State &state, Event const &event,
+                            EventEngine &event_engine,
+                            StateProvider &state_provider) const {
+    on_reentry(state, event, event_engine, state_provider);
   }
 
-  template <concepts::state State, concepts::machine Machine,
-            concepts::event Event>
-  constexpr void operator()(State &, Machine &, Event const &) const noexcept {}
+  template <concepts::state State, concepts::event Event,
+            concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  requires requires(State &s, Event const &e) { on_reentry(s, e); }
+  constexpr void operator()(State &state, Event const &event, EventEngine &,
+                            StateProvider &) const {
+    on_reentry(state, event);
+  }
+
+  template <concepts::state State, concepts::event Event,
+            concepts::event_engine EventEngine,
+            concepts::state_provider StateProvider>
+  requires requires(State &s) { on_reentry(s); }
+  constexpr void operator()(State &state, Event const &, EventEngine &,
+                            StateProvider &) const {
+    on_reentry(state);
+  }
 };
 } // namespace reenter_fn_details_
 

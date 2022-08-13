@@ -1,28 +1,42 @@
 find_package(Catch2 CONFIG REQUIRED)
 
 add_executable(fsm_unit_tests)
-target_link_libraries(fsm_unit_tests fsm Catch2::Catch2)
+target_link_libraries(fsm_unit_tests PRIVATE Catch2::Catch2 Catch2::Catch2WithMain)
 set_property(TARGET fsm_unit_tests PROPERTY CXX_STANDARD 20)
 target_include_directories(fsm_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/main/cpp)
-target_sources(fsm_unit_tests PRIVATE main.cpp
+target_sources(fsm_unit_tests PRIVATE
   skizzay/fsm/action_transition.t.cpp
-  skizzay/fsm/ancestors.t.cpp
+  skizzay/fsm/enter.t.cpp
+  skizzay/fsm/event_context_root.t.cpp
+  skizzay/fsm/event_engine.t.cpp
+  skizzay/fsm/event_handler.t.cpp
+  skizzay/fsm/event_transition_context.t.cpp
+  skizzay/fsm/event.t.cpp
+  skizzay/fsm/exit.t.cpp
   skizzay/fsm/flat_state_container.t.cpp
   skizzay/fsm/guarded_action_transition.t.cpp
   skizzay/fsm/guarded_transition.t.cpp
   skizzay/fsm/hierarchical_state_container.t.cpp
+  skizzay/fsm/machine_state.t.cpp
   skizzay/fsm/orthogonal_state_container.t.cpp
+  skizzay/fsm/reenter.t.cpp
   skizzay/fsm/simple_transition.t.cpp
   skizzay/fsm/single_state_container.t.cpp
-  skizzay/fsm/traits.t.cpp
+  skizzay/fsm/state_accessible.t.cpp
+  skizzay/fsm/state_chart.t.cpp
+  skizzay/fsm/state_container.t.cpp
+  skizzay/fsm/state_provider.t.cpp
+  skizzay/fsm/state_queryable.t.cpp
+  skizzay/fsm/state.t.cpp
+  skizzay/fsm/transition.t.cpp
   skizzay/fsm/type_list.t.cpp
 )
 
 add_executable(fsm_integration_tests)
-target_link_libraries(fsm_integration_tests fsm Catch2::Catch2)
+target_link_libraries(fsm_integration_tests PRIVATE Catch2::Catch2 Catch2::Catch2WithMain)
 set_property(TARGET fsm_integration_tests PROPERTY CXX_STANDARD 20)
 target_include_directories(fsm_integration_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/main/cpp)
-target_sources(fsm_integration_tests PRIVATE main.cpp
+target_sources(fsm_integration_tests PRIVATE
   skizzay/fsm/integration/full_fsm.t.cpp
 )
 

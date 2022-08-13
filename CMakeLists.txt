@@ -13,9 +13,9 @@ endif()
 
 add_subdirectory(src/main/cpp)
 
-if (BUILD_TESTS)
+#if (BUILD_TESTS)
   add_subdirectory(src/test/cpp)
-endif()
+#endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

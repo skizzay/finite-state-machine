@@ -1,100 +1,71 @@
-#include <catch.hpp>
 #include <skizzay/fsm/enter.h>
-#include <skizzay/fsm/event.h>
 
-using skizzay::fsm::epsilon_event;
-using skizzay::fsm::epsilon_event_t;
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/states_list.h"
+#include "test_objects.h"
+#include <catch.hpp>
+
+using namespace skizzay::fsm;
 
 namespace {
 
-struct simple_state {
-  std::size_t entry_count = 0;
+constexpr std::size_t num_events = 2;
+
+struct simple_state : test_objects::test_state<0, num_events> {
+  template <std::size_t EventId>
+  void on_entry(test_objects::test_event<EventId> const &) = delete;
 };
 
-struct adl_state {
-  std::size_t entry_count = 0;
+struct adl_state : test_objects::test_state<1, num_events> {
+  template<std::size_t EventId>
+  void on_entry(test_objects::test_event<EventId> const &) = delete;
 };
 
 void on_entry(adl_state &s, epsilon_event_t const &) noexcept {
-  ++s.entry_count;
+  ++s.epsilon_event_entry_count;
 }
 
-struct member_function_state {
-  std::size_t entry_count = 0;
+using member_function_state = test_objects::test_state<2, num_events>;
 
-  void on_entry(epsilon_event_t const &) noexcept { ++entry_count; }
-};
-
-struct child_state {
-  std::size_t entry_count = 0;
-
-  template <typename ParentStates>
-  void on_entry(auto const &, ParentStates parents) {
-    ++entry_count;
-    std::apply([](auto &...parents) noexcept { (++parents.entry_count, ...); },
-               parents);
-  }
-};
+using child_state = test_objects::test_state<3, num_events>;
 
 } // namespace
 
 SCENARIO("enter callbacks", "[unit][state]") {
+  test_objects::fake_event_engine<test_objects::test_events_list<num_events>>
+      event_engine;
+  test_objects::fake_state_provider<
+      states_list<simple_state, adl_state, member_function_state, child_state>>
+      state_provider;
+
   GIVEN("a state without any callbacks") {
-    simple_state target;
+    simple_state &target = state_provider.state<simple_state>();
 
     WHEN("entered") {
-      skizzay::fsm::enter(target, epsilon_event, std::tuple{});
-      THEN("entry callback was not fired") { REQUIRE(0 == target.entry_count); }
+      skizzay::fsm::enter(target, epsilon_event, event_engine, state_provider);
+      THEN("entry callback was not fired") { REQUIRE(0 == target.epsilon_event_entry_count); }
     }
   }
 
   GIVEN("a state with ADL callbacks") {
-    adl_state target;
+    adl_state &target = state_provider.state<adl_state>();
 
     WHEN("entered") {
-      skizzay::fsm::enter(target, epsilon_event, std::tuple{});
-      THEN("entry callback was fired") { REQUIRE(1 == target.entry_count); }
+      skizzay::fsm::enter(target, epsilon_event, event_engine, state_provider);
+      THEN("entry callback was fired") {
+        REQUIRE(1 == target.epsilon_event_entry_count);
+      }
     }
   }
 
   GIVEN("a state with member function callbacks") {
-    member_function_state target;
+    member_function_state &target =
+        state_provider.state<member_function_state>();
 
     WHEN("entered") {
-      skizzay::fsm::enter(target, epsilon_event, std::tuple{});
-      THEN("entry callback was fired") { REQUIRE(1 == target.entry_count); }
-    }
-  }
-
-  GIVEN("a state with parental callbacks") {
-    simple_state parent;
-    child_state child;
-
-    AND_GIVEN("a grandparent") {
-      member_function_state grandparent;
-
-      WHEN("entered") {
-        auto target = std::tie(parent, grandparent);
-        skizzay::fsm::enter(child, epsilon_event, target);
-        THEN("child entry callback was fired") {
-          REQUIRE(1 == child.entry_count);
-        }
-        THEN("parent entry callback was fired") {
-          REQUIRE(1 == parent.entry_count);
-        }
-        THEN("grandparent entry callback was fired") {
-          REQUIRE(1 == grandparent.entry_count);
-        }
-      }
-    }
-
-    WHEN("entered") {
-      skizzay::fsm::enter(child, epsilon_event, std::tie(parent));
-      THEN("child entry callback was fired") {
-        REQUIRE(1 == child.entry_count);
-      }
-      THEN("parent entry callback was fired") {
-        REQUIRE(1 == parent.entry_count);
+      skizzay::fsm::enter(target, epsilon_event, event_engine, state_provider);
+      THEN("entry callback was fired") {
+        REQUIRE(1 == target.epsilon_event_entry_count);
       }
     }
   }

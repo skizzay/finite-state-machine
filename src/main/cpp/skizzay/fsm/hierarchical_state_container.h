@@ -1,12 +1,14 @@
 #pragma once
 
-#include <skizzay/fsm/basic_state_container.h>
-#include <skizzay/fsm/concepts.h>
-#include <skizzay/fsm/enter.h>
-#include <skizzay/fsm/exit.h>
-#include <skizzay/fsm/node_transition_coordinator.h>
-#include <skizzay/fsm/reenter.h>
-#include <skizzay/fsm/type_list.h>
+#include "skizzay/fsm/basic_state_container.h"
+#include "skizzay/fsm/event_context_node.h"
+#include "skizzay/fsm/exit.h"
+#include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/states_list.h"
+#include "skizzay/fsm/type_list.h"
+#include <concepts>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -16,82 +18,87 @@ namespace hierarchical_state_container_details_ {
 
 template <concepts::state ParentState>
 struct parent_state_container
-    : basic_state_container<parent_state_container<ParentState>> {
-  using states_list_type = states_list<ParentState>;
-  ParentState state_;
+    : basic_state_container<parent_state_container<ParentState>, ParentState> {
 
-  constexpr parent_state_container() noexcept(
-      std::is_nothrow_default_constructible_v<ParentState>) = default;
+  using basic_state_container<parent_state_container<ParentState>,
+                              ParentState>::basic_state_container;
 
-  constexpr explicit parent_state_container(ParentState state) noexcept(
-      std::is_nothrow_move_constructible_v<ParentState>)
-      : basic_state_container<parent_state_container<ParentState>>{},
-        state_{std::move_if_noexcept(state)} {}
-
-  constexpr ParentState &get() noexcept { return state_; }
-
-  constexpr ParentState const &get() const noexcept { return state_; }
-
-  template <concepts::machine_for<ParentState> Machine, concepts::event Event>
-  requires(
-      concepts::event_in<Event, events_list_t<Machine>> ||
-      std::same_as<
-          Event,
-          initial_entry_event_t>) constexpr void do_entry(Machine &machine,
-                                                          Event const &event) {
-    enter(state_, machine, event);
-  }
-
-  template <concepts::machine_for<ParentState> Machine,
-            concepts::event_in<events_list_t<Machine>> Event>
-  constexpr void do_exit(Machine &, Event const &) noexcept {}
-
-  template <concepts::machine_for<ParentState> Machine>
-  constexpr void do_exit(Machine &machine, final_exit_event_t const) noexcept {
-    exit(state_, machine, final_exit_event);
-  }
-};
-
-template <typename ParentTransitionCoordinator, typename ParentStateContainer,
-          typename ChildStateContainer>
-struct child_transition_coordinator
-    : node_transition_coordinator<ChildStateContainer,
-                                  ParentTransitionCoordinator> {
-  using transition_table_type = transition_table_t<ParentTransitionCoordinator>;
-
-  constexpr explicit child_transition_coordinator(
-      ParentTransitionCoordinator &parent_transition_coordinator,
-      ParentStateContainer &parent_state_container,
-      ChildStateContainer &child_state_container) noexcept
-      : node_transition_coordinator<
-            ChildStateContainer,
-            ParentTransitionCoordinator>{parent_transition_coordinator,
-                                         child_state_container},
-        parent_state_container_{parent_state_container} {}
-
-  using node_transition_coordinator<ChildStateContainer,
-                                    ParentTransitionCoordinator>::on_transition;
-
-  template <concepts::transition Transition, concepts::machine Machine>
-  requires std::same_as<front_t<states_list_t<ParentStateContainer>>,
-                        next_state_t<Transition>>
-  constexpr void on_transition(Transition &, Machine &,
-                               event_t<Transition> const &) {
-    child_to_parent_transition_triggered_ = true;
-  }
-
-  constexpr bool child_to_parent_transition_triggered() const noexcept {
-    return child_to_parent_transition_triggered_;
-  }
-
-private:
-  ParentStateContainer &parent_state_container_;
-  bool child_to_parent_transition_triggered_ = false;
+  constexpr void do_exit(concepts::event auto const &,
+                         concepts::event_engine auto &,
+                         concepts::state_provider auto &) noexcept {}
 };
 
 template <concepts::state ParentState,
           concepts::state_container ChildStateContainer>
-struct container {
+class container {
+  parent_state_container<ParentState> parent_state_container_;
+  ChildStateContainer child_state_container_;
+
+  template <concepts::state State>
+  constexpr auto &get_state_container_for() noexcept {
+    if constexpr (std::same_as<ParentState, State>) {
+      return parent_state_container_;
+    } else {
+      return child_state_container_;
+    }
+  }
+
+  template <concepts::state State>
+  constexpr auto const &get_state_container_for() const noexcept {
+    if constexpr (std::same_as<ParentState, State>) {
+      return parent_state_container_;
+    } else {
+      return child_state_container_;
+    }
+  }
+
+  constexpr void enter_child_state_container(
+      concepts::state_schedule auto const &state_schedule,
+      concepts::event auto const &event,
+      concepts::event_engine auto &event_engine,
+      concepts::state_provider auto &state_provider) {
+    using candidate_states_list_type = intersection_of_t<
+        next_states_list_t<std::remove_cvref_t<decltype(state_schedule)>>,
+        states_list_t<ChildStateContainer>>;
+    if constexpr (!empty_v<candidate_states_list_type>) {
+      if (has_state_scheduled_for_entry(
+              state_schedule, std::as_const(child_state_container_))) {
+        child_state_container_.on_entry(state_schedule, event, event_engine,
+                                        state_provider);
+      } else {
+        execute_initial_entry(child_state_container_, event_engine,
+                              state_provider);
+      }
+    } else {
+      execute_initial_entry(child_state_container_, event_engine,
+                            state_provider);
+    }
+  }
+
+  constexpr void enter_parent_state_container(
+      concepts::state_schedule auto const &state_schedule,
+      concepts::event auto const &event,
+      concepts::event_engine auto &event_engine,
+      concepts::state_provider auto &state_provider) {
+    using candidate_states_list_type = intersection_of_t<
+        next_states_list_t<std::remove_cvref_t<decltype(state_schedule)>>,
+        states_list<ParentState>>;
+    if constexpr (!empty_v<candidate_states_list_type>) {
+      if (has_state_scheduled_for_entry(
+              state_schedule, std::as_const(parent_state_container_))) {
+        parent_state_container_.on_entry(state_schedule, event, event_engine,
+                                         state_provider);
+      } else if (parent_state_container_.is_inactive()) {
+        execute_initial_entry(parent_state_container_, event_engine,
+                              state_provider);
+      }
+    } else if (parent_state_container_.is_inactive()) {
+      execute_initial_entry(parent_state_container_, event_engine,
+                            state_provider);
+    }
+  }
+
+public:
   using states_list_type =
       concat_t<states_list<ParentState>, states_list_t<ChildStateContainer>>;
 
@@ -137,138 +144,144 @@ struct container {
 
   template <concepts::state_in<states_list_type> S>
   constexpr bool is() const noexcept {
-    if constexpr (std::is_same_v<S, ParentState>) {
-      return parent_state_container_.is_active();
-    } else {
-      return child_state_container_.template is<S>();
-    }
-  }
-
-  constexpr bool is_active() const noexcept {
-    return child_state_container_.is_active();
-  }
-
-  constexpr bool is_inactive() const noexcept {
-    return parent_state_container_.is_inactive();
+    return is_active() &&
+           this->template get_state_container_for<S>().template is<S>();
   }
 
   template <concepts::state_in<states_list_type> S>
   constexpr optional_reference<S const> current_state() const noexcept {
-    if constexpr (std::is_same_v<S, ParentState>) {
-      return parent_state_container_.template current_state<S>();
-    } else {
-      return child_state_container_.template current_state<S>();
-    }
+    return this->template get_state_container_for<S>()
+        .template current_state<S>();
+  }
+
+  template <concepts::query<states_list_type> Query>
+  constexpr bool query(Query &&query) const
+      noexcept(concepts::nothrow_query<Query, states_list_type>) {
+    return parent_state_container_.query(std::forward<Query>(query)) ||
+           child_state_container_.query(std::forward<Query>(query));
+  }
+
+  constexpr std::tuple<memento_t<parent_state_container<ParentState>>,
+                       memento_t<ChildStateContainer>>
+  memento() const
+      noexcept(is_memento_nothrow_v<parent_state_container<ParentState>>
+                   &&is_memento_nothrow_v<ChildStateContainer>) {
+    using skizzay::fsm::memento;
+    return std::tuple{memento(parent_state_container_),
+                      memento(child_state_container_)};
+  }
+
+  constexpr void recover_from_memento(
+      std::tuple<memento_t<parent_state_container<ParentState>>,
+                 memento_t<ChildStateContainer>> &&
+          memento) noexcept(is_recover_from_memento_nothrow_v<parent_state_container<ParentState>>
+                                &&is_recover_from_memento_nothrow_v<
+                                    ChildStateContainer>) {
+    using skizzay::fsm::recover_from_memento;
+    recover_from_memento(parent_state_container_,
+                         std::move(std::get<0>(memento)));
+    recover_from_memento(child_state_container_,
+                         std::move(std::get<1>(memento)));
   }
 
   template <concepts::state_in<states_list_type> S>
-  constexpr S &get() noexcept {
-    if constexpr (std::is_same_v<S, ParentState>) {
-      return parent_state_container_.state_;
-    } else {
-      return child_state_container_.template get<S>();
-    }
+  constexpr S const &state() const noexcept {
+    return this->template get_state_container_for<S>().template state<S>();
   }
 
   template <concepts::state_in<states_list_type> S>
-  constexpr S const &get() const noexcept {
-    if constexpr (std::is_same_v<S, ParentState>) {
-      return parent_state_container_.state_;
-    } else {
-      return child_state_container_.template get<S>();
-    }
+  constexpr S &state() noexcept {
+    return this->template get_state_container_for<S>().template state<S>();
   }
 
-  template <concepts::state_in<states_list_type> S, concepts::ancestry Ancestry>
-  constexpr auto ancestry_to(Ancestry ancestry) noexcept {
-    if constexpr (std::is_same_v<S, ParentState>) {
-      return parent_state_container_.template ancestry_to<S>(ancestry);
-    } else {
-      return child_state_container_.template ancestry_to<S>(
-          parent_state_container_.template ancestry_to<ParentState>(ancestry));
-    }
+  constexpr bool is_active() const noexcept {
+    return parent_state_container_.is_active() ||
+           child_state_container_.is_active();
   }
 
-  template <concepts::machine Machine>
-  constexpr void on_initial_entry(Machine &machine) {
-    parent_state_container_.on_initial_entry(machine);
-    child_state_container_.on_initial_entry(machine);
+  constexpr bool is_inactive() const noexcept {
+    return parent_state_container_.is_inactive() &&
+           child_state_container_.is_inactive();
   }
 
-  template <concepts::machine Machine>
-  constexpr void on_final_exit(Machine &machine) {
-    child_state_container_.on_final_exit(machine);
-    parent_state_container_.on_final_exit(machine);
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          initial_entry_event_t const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    parent_state_container_.on_entry(state_schedule, event, event_engine,
+                                     state_provider);
+    child_state_container_.on_entry(state_schedule, event, event_engine,
+                                    state_provider);
   }
 
-  template <concepts::entry_coordinator EntryCoordinator,
-            concepts::machine Machine,
-            concepts::event_in<events_list_t<Machine>> Event>
-  constexpr void on_entry(EntryCoordinator const &entry_coordinator,
-                          Machine &machine, Event const &event) {
-    constexpr auto enter_container =
-        []<typename StateContainer>(EntryCoordinator const &entry_coodinator,
-                                    Machine &machine, Event const &event,
-                                    StateContainer &container) {
-          using applicable_state_containers_list_type =
-              typename EntryCoordinator::applicable_state_containers_list_type<
-                  state_containers_list<StateContainer>>;
-          if constexpr (!empty_v<applicable_state_containers_list_type>) {
-            if (entry_coodinator.has_scheduled_state(container)) {
-              container.on_entry(entry_coodinator, machine, event);
-            } else {
-              container.on_initial_entry(machine);
-            }
-          } else {
-            container.on_initial_entry(machine);
-          }
-        };
-    if (parent_state_container_.is_inactive()) {
-      enter_container(entry_coordinator, machine, event,
-                      parent_state_container_);
-    }
-    enter_container(entry_coordinator, machine, event, child_state_container_);
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          concepts::event auto const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    enter_parent_state_container(state_schedule, event, event_engine,
+                                 state_provider);
+    enter_child_state_container(state_schedule, event, event_engine,
+                                state_provider);
   }
 
-  template <typename TransitionCoordinator, concepts::machine Machine,
-            concepts::event_in<events_list_t<Machine>> Event>
   constexpr bool
-  on_event(TransitionCoordinator &incoming_transition_coordinator,
-           Machine &machine, Event const &event) {
-    child_transition_coordinator ctc{incoming_transition_coordinator,
-                                     parent_state_container_,
-                                     child_state_container_};
-    if (!child_state_container_.on_event(ctc, machine, event)) {
-      node_transition_coordinator parent_transition_coordinator{
-          incoming_transition_coordinator, *this};
-      bool const result = parent_state_container_.on_event(
-          parent_transition_coordinator, machine, event);
-      if (parent_transition_coordinator.will_exit_container()) {
-        child_state_container_.on_final_exit(machine);
-        // The parent state container has already been deactivated during the
-        // call to on_event, but haven't exited yet. We just need to invoke the
-        // exit callback on the state.  This ensures that we exit the parent
-        // state after the child state.
-        exit(parent_state_container_.state_, machine, event);
-      }
-      return result;
-    } else if (ctc.child_to_parent_transition_triggered()) {
-      reenter(parent_state_container_.state_, machine, event);
-      child_state_container_.on_initial_entry(machine);
-      return true;
-    } else if (ctc.will_exit_container()) {
-      parent_state_container_.on_final_exit(machine);
-      return true;
-    } else {
-      return true;
-    }
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           final_exit_event_t const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
+    bool const child_result = child_state_container_.on_event(
+        event_transition_context, event, event_engine, state_provider);
+    bool const parent_result = parent_state_container_.on_event(
+        event_transition_context, event, event_engine, state_provider);
+    exit(parent_state_container_.state(), final_exit_event, event_engine,
+         state_provider);
+    return child_result || parent_result;
   }
 
-private:
-  parent_state_container<ParentState> parent_state_container_;
-  ChildStateContainer child_state_container_;
+  constexpr bool
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           concepts::event auto const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
+    event_context_node<std::remove_cvref_t<decltype(event_transition_context)>,
+                       states_list_type>
+        child_event_context_node{event_transition_context};
+    if (child_state_container_.on_event(child_event_context_node, event,
+                                        event_engine, state_provider)) {
+      if (child_event_context_node.will_exit_container()) {
+        execute_final_exit(parent_state_container_, event_engine,
+                           state_provider);
+        exit(parent_state_container_.state(), final_exit_event, event_engine,
+             state_provider);
+      }
+      return true;
+    } else {
+      event_context_node<
+          std::remove_cvref_t<decltype(event_transition_context)>,
+          states_list_type>
+          parent_event_context_node{event_transition_context};
+      if (parent_state_container_.on_event(parent_event_context_node, event,
+                                           event_engine, state_provider)) {
+        execute_final_exit(child_state_container_, event_engine,
+                           state_provider);
+        if (parent_event_context_node.will_exit_container()) {
+          exit(parent_state_container_.state(),
+               event, event_engine, state_provider);
+        }
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
 };
 } // namespace hierarchical_state_container_details_
+
+template <concepts::state State>
+struct basic_state_t<
+    hierarchical_state_container_details_::parent_state_container<State>> {
+  using type = State;
+};
 
 template <concepts::state ParentState,
           concepts::state_container ChildStateContainer>

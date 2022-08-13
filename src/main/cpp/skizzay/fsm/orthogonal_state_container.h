@@ -1,10 +1,20 @@
 #pragma once
 
+#include "skizzay/fsm/event_context_node.h"
+#include "skizzay/fsm/event_transition_context.h"
+#include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_container.h"
+#include "skizzay/fsm/state_containers_list.h"
+#include "skizzay/fsm/state_schedule.h"
+#include "skizzay/fsm/states_list.h"
+#include "skizzay/fsm/type_list.h"
+
+#include <algorithm>
 #include <bitset>
-#include <skizzay/fsm/concepts.h>
-#include <skizzay/fsm/node_transition_coordinator.h>
-#include <skizzay/fsm/optional_reference.h>
+#include <cstddef>
+#include <functional>
 #include <tuple>
+#include <type_traits>
 
 namespace skizzay::fsm {
 
@@ -24,12 +34,6 @@ template <template <typename...> typename Template, typename Tn,
 struct container_index_calc<Template<Tn, Tns...>, S, N>
     : container_index_calc<Template<Tns...>, S, N + 1> {};
 
-template <typename StatesList> struct contains_entry_state {
-  template <typename Container>
-  using test =
-      std::bool_constant<contains_any_v<StatesList, states_list_t<Container>>>;
-};
-
 template <typename TransitionCoordinator> struct is_state_container_for {
   template <typename StateContainer>
   using test =
@@ -43,36 +47,61 @@ template <concepts::state_container... StateContainers> class container {
   using tuple_type = std::tuple<StateContainers...>;
   tuple_type state_containers_;
 
-  template <typename> friend struct transition_coordinator;
-  template <typename ParentTransitionCoordinator>
-  struct transition_coordinator
-      : node_transition_coordinator<container<StateContainers...>,
-                                    ParentTransitionCoordinator> {
+  template <concepts::state State>
+  constexpr auto &get_state_container_for() noexcept {
+    return std::get<state_container_for_t<tuple_type, State>>(
+        state_containers_);
+  }
+
+  template <concepts::state State>
+  constexpr auto const &get_state_container_for() const noexcept {
+    return std::get<state_container_for_t<tuple_type, State>>(
+        state_containers_);
+  }
+
+  template <std::size_t N>
+  static constexpr bool
+  handled_event(std::array<bool, N> const values) noexcept {
+    return [values]<std::size_t... Is>(
+        std::index_sequence<Is...> const) noexcept {
+      return (values[Is] || ...);
+    }
+    (std::make_index_sequence<N>{});
+  }
+
+  template <concepts::event_transition_context ParentEventTransitionContext>
+  struct event_transition_context
+      : event_context_node<ParentEventTransitionContext,
+                           states_list_t<container<StateContainers...>>> {
     template <typename State>
     static constexpr std::size_t container_index =
         container_index_calc<typename container<StateContainers...>::tuple_type,
                              State, 0>::value;
 
-    using node_transition_coordinator<
-        container<StateContainers...>,
-        ParentTransitionCoordinator>::node_transition_coordinator;
+    using event_context_node<
+        ParentEventTransitionContext,
+        states_list_t<container<StateContainers...>>>::event_context_node;
 
-    template <concepts::transition Transition, concepts::machine Machine>
-    constexpr void on_transition(Transition &transition, Machine &machine,
+    template <concepts::transition_in<
+        transition_table_t<ParentEventTransitionContext>>
+                  Transition>
+    constexpr void on_transition(Transition &transition,
                                  event_t<Transition> const &event) {
       triggered_containers_.set(container_index<current_state_t<Transition>>);
-      this->node_transition_coordinator<
-          container<StateContainers...>,
-          ParentTransitionCoordinator>::on_transition(transition, machine,
-                                                      event);
+      this->event_context_node<ParentEventTransitionContext,
+                               states_list_t<container<StateContainers...>>>::
+          on_transition(transition, event);
     }
 
-    template <concepts::state_container Container, concepts::machine Machine>
-    constexpr void ensure_exited(Container &child_container, Machine &machine) {
+    template <concepts::state_container_in<tuple_type> StateContainer>
+    constexpr void
+    ensure_exited(StateContainer &child_container,
+                  concepts::event_engine auto &event_engine,
+                  concepts::state_provider auto &state_provider) {
       if (!triggered_containers_.test(
               index_of_v<typename container<StateContainers...>::tuple_type,
-                         Container>)) {
-        child_container.on_final_exit(machine);
+                         StateContainer>)) {
+        execute_final_exit(child_container, event_engine, state_provider);
       }
     }
 
@@ -81,7 +110,7 @@ template <concepts::state_container... StateContainers> class container {
   };
 
 public:
-  using states_list_type = concat_t<states_list_t<StateContainers>...>;
+  using states_list_type = flat_map_t<map_t<tuple_type, states_list_t>>;
 
   constexpr container() noexcept(
       std::is_nothrow_default_constructible_v<tuple_type>)
@@ -93,115 +122,176 @@ public:
 
   template <concepts::state_in<states_list_type> S>
   constexpr bool is() const noexcept {
-    return std::get<state_container_for_t<tuple_type, S>>(state_containers_)
-        .template is<S>();
-  }
-
-  constexpr bool is_active() const noexcept {
-    return std::get<0>(state_containers_).is_active();
-  }
-
-  constexpr bool is_inactive() const noexcept {
-    return std::get<0>(state_containers_).is_inactive();
+    return this->template get_state_container_for<S>().template is<S>();
   }
 
   template <concepts::state_in<states_list_type> S>
   constexpr optional_reference<S const> current_state() const noexcept {
-    return std::get<state_container_for_t<tuple_type, S>>(state_containers_)
+    return this->template get_state_container_for<S>()
         .template current_state<S>();
   }
 
   template <concepts::state_in<states_list_type> S>
-  constexpr S const &get() const noexcept {
-    return std::get<state_container_for_t<tuple_type, S>>(state_containers_)
-        .template get<S>();
+  constexpr S const &state() const noexcept {
+    return this->template get_state_container_for<S>().template state<S>();
   }
 
   template <concepts::state_in<states_list_type> S>
-  constexpr S &get() noexcept {
-    return std::get<state_container_for_t<tuple_type, S>>(state_containers_)
-        .template get<S>();
+  constexpr S &state() noexcept {
+    return this->template get_state_container_for<S>().template state<S>();
   }
 
-  template <concepts::state_in<states_list_type> S, concepts::ancestry Ancestry>
-  constexpr auto ancestry_to(Ancestry ancestry) noexcept {
-    return std::get<state_container_for_t<tuple_type, S>>(state_containers_)
-        .template ancestry_to<S>(ancestry);
-  }
-
-  template <concepts::machine Machine>
-  constexpr void on_initial_entry(Machine &machine) {
-    std::apply(
-        [&machine](StateContainers &...state_containers) {
-          (state_containers.on_initial_entry(machine), ...);
+  constexpr bool is_active() const noexcept {
+    return std::apply(
+        [](concepts::state_container auto const &...state_containers) noexcept {
+          return (state_containers.is_active() || ...);
         },
         state_containers_);
   }
 
-  template <concepts::machine Machine>
-  constexpr void on_final_exit(Machine &machine) {
-    std::apply(
-        [&machine](StateContainers &...state_containers) {
-          (state_containers.on_final_exit(machine), ...);
+  constexpr bool is_inactive() const noexcept {
+    return std::apply(
+        [](concepts::state_container auto const &...state_containers) noexcept {
+          return (state_containers.is_inactive() && ...);
         },
         state_containers_);
   }
 
-  template <concepts::entry_coordinator EntryCoordinator,
-            concepts::machine Machine,
-            concepts::event_in<events_list_t<Machine>> Event>
-  constexpr void on_entry(EntryCoordinator const &entry_coordinator,
-                          Machine &machine, Event const &event) {
+  template <concepts::query<states_list_type> Query>
+  constexpr bool query(Query &&query) const
+      noexcept(concepts::nothrow_query<Query, states_list_type>) {
+    return [this]<std::size_t... Is>(
+        Query && query,
+        std::index_sequence<
+            Is...> const) noexcept(concepts::nothrow_query<Query,
+                                                           states_list_type>) {
+      return !(
+          !std::get<Is>(state_containers_).query(std::forward<Query>(query)) &&
+          ...);
+    }
+    (std::forward<Query>(query),
+     std::make_index_sequence<length_v<tuple_type>>{});
+  }
+
+  constexpr std::tuple<memento_t<StateContainers>...> memento() const
+      noexcept((is_memento_nothrow_v<StateContainers> && ...)) {
+    return std::apply(
+        [](StateContainers const &...state_containers) noexcept(
+            (is_memento_nothrow_v<StateContainers> && ...)) {
+          return std::tuple{state_containers.memento()...};
+        },
+        state_containers_);
+  }
+
+  constexpr void recover_from_memento(
+      std::tuple<memento_t<StateContainers>...> &&
+          memento) noexcept((is_recover_from_memento_nothrow_v<StateContainers> &&
+                             ...)) {
+    using skizzay::fsm::recover_from_memento;
+    []<std::size_t... Is>(
+        tuple_type & state_containers,
+        std::tuple<memento_t<StateContainers>...> && memento,
+        std::index_sequence<
+            Is...> const) noexcept((is_recover_from_memento_nothrow_v<StateContainers> &&
+                                    ...)) {
+      (recover_from_memento(std::get<Is>(state_containers),
+                            std::move(std::get<Is>(memento))),
+       ...);
+    }
+    (state_containers_,
+     std::move(memento),
+     std::make_index_sequence<length_v<tuple_type>>{});
+  }
+
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          initial_entry_event_t const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
+    std::apply(
+        [&](StateContainers &...state_containers) {
+          (state_containers.on_entry(state_schedule, event, event_engine,
+                                     state_provider),
+           ...);
+        },
+        state_containers_);
+  }
+
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          concepts::event auto const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
     using scheduled_containers_list =
-        typename EntryCoordinator::applicable_state_containers_list_type<
-            tuple_type>;
+        state_containers_for_t<tuple_type,
+                               next_states_list_t<decltype(state_schedule)>>;
     auto const enter_child_container =
-        [&]<typename Container>(Container &child_container) {
-          if constexpr (contains_v<scheduled_containers_list, Container>) {
-            child_container.on_entry(entry_coordinator, machine, event);
+        [&]<concepts::state_container StateContainer>(
+            StateContainer &child_container) {
+          if constexpr (contains_v<scheduled_containers_list, StateContainer>) {
+            child_container.on_entry(state_schedule, event, event_engine,
+                                     state_provider);
           } else {
             if (child_container.is_inactive()) {
-              child_container.on_initial_entry(machine);
+              execute_initial_entry(child_container, event_engine,
+                                    state_provider);
             }
           }
         };
     std::apply(
-        [enter_child_container](auto &...containers) {
+        [enter_child_container](concepts::state_container auto &...containers) {
           (enter_child_container(containers), ...);
         },
         state_containers_);
   }
 
-  template <typename ParentTransitionCoordinator, concepts::machine Machine,
-            concepts::event_in<events_list_t<Machine>> Event>
   constexpr bool
-  on_event(ParentTransitionCoordinator &parent_transition_coordinator,
-           Machine &machine, Event const &event) {
-    using candidate_states_containers_list = as_container_t<
-        filter_t<tuple_type, is_state_container_for<
-                                 ParentTransitionCoordinator>::template test>,
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           final_exit_event_t const &event,
+           concepts::event_engine auto event_engine,
+           concepts::state_provider auto state_provider) {
+    return handled_event(std::apply(
+        [&](StateContainers &...state_containers) {
+          return std::array{
+              (state_containers.on_event(event_transition_context, event,
+                                         event_engine, state_provider),
+               ...)};
+        },
+        state_containers_));
+  }
+
+  constexpr bool on_event(
+      concepts::event_transition_context auto &parent_event_transition_context,
+      concepts::event auto const &event,
+      concepts::event_engine auto event_engine,
+      concepts::state_provider auto state_provider) {
+    using candidate_state_containers_list = as_container_t<
+        state_containers_for_t<
+            tuple_type,
+            current_states_list_t<decltype(parent_event_transition_context)>>,
         state_containers_list>;
-    transition_coordinator<ParentTransitionCoordinator> coordinator{
-        parent_transition_coordinator, *this};
-    auto const result = [&]<template <typename...> typename Template,
-                            typename... FoundStateContainers>(
-        Template<FoundStateContainers...> const) {
-      return std::tuple{std::get<FoundStateContainers>(state_containers_)
-                            .on_event(coordinator, machine, event)...};
+
+    event_transition_context<
+        std::remove_cvref_t<decltype(parent_event_transition_context)>>
+        child_event_transition_context{parent_event_transition_context};
+    std::array const
+        result = [&]<concepts::state_container... CandidateStateContainers>(
+            tuple_type & state_containers,
+            state_containers_list<CandidateStateContainers...> const) {
+      return std::array<bool, sizeof...(CandidateStateContainers)>{
+          std::get<CandidateStateContainers>(state_containers)
+              .on_event(child_event_transition_context, event, event_engine,
+                        state_provider)...};
     }
-    (candidate_states_containers_list{});
-    if (coordinator.will_exit_container()) {
+    (state_containers_, candidate_state_containers_list{});
+    if (child_event_transition_context.will_exit_container()) {
       std::apply(
-          [&](auto &...containers) {
-            (coordinator.ensure_exited(containers, machine), ...);
+          [&](concepts::state_container auto &...state_containers) {
+            (child_event_transition_context.ensure_exited(
+                 state_containers, event_engine, state_provider),
+             ...);
           },
           state_containers_);
     }
-    return std::apply(
-        [](std::same_as<bool> auto const... values) noexcept {
-          return (values || ... || false);
-        },
-        result);
+    return handled_event(result);
   }
 };
 } // namespace orthogonal_state_container_details_

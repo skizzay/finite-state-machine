@@ -1,21 +1,34 @@
 #pragma once
 
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/events_list.h"
+#include "skizzay/fsm/states_list.h"
+#include "skizzay/fsm/transition_table.h"
+#include "skizzay/fsm/type_list.h"
+
 #include <array>
 #include <cstddef>
 #include <numeric>
-#include <skizzay/fsm/concepts.h>
-#include <skizzay/fsm/entry_coordinator.h>
-#include <skizzay/fsm/event.h>
-#include <skizzay/fsm/transition_coordinator.h>
-#include <type_traits>
 
-namespace {
+namespace test_objects {
 template <std::size_t> struct test_event { bool pass_acceptance = true; };
+
+namespace test_events_list_details_ {
+template <typename> struct impl {};
+template <std::size_t... Is> struct impl<std::index_sequence<Is...>> {
+  using type = skizzay::fsm::events_list<test_event<Is>...>;
+};
+} // namespace test_events_list_details_
+
+template <std::size_t N>
+using test_events_list =
+    typename test_events_list_details_::impl<std::make_index_sequence<N>>::type;
 
 template <std::size_t Id, std::size_t NumEvents> struct test_state {
   std::size_t initial_entry_count = 0;
   std::size_t final_exit_count = 0;
   std::size_t epsilon_event_entry_count = 0;
+  std::size_t epsilon_event_reentry_count = 0;
   std::size_t epsilon_event_exit_count = 0;
   std::array<std::size_t, NumEvents> event_entry_count;
   std::array<std::size_t, NumEvents> event_reentry_count;
@@ -67,58 +80,148 @@ template <std::size_t Id, std::size_t NumEvents> struct test_state {
   template <std::size_t I> void on_reentry(test_event<I> const &) noexcept {
     event_reentry_count[I] += 1;
   }
+  void on_reentry(skizzay::fsm::epsilon_event_t const) noexcept {
+    epsilon_event_reentry_count += 1;
+  }
 
   template <std::size_t I>
-  bool accepts(test_event<I> const &event) const noexcept {
+  bool is_accepted(test_event<I> const &event) const noexcept {
     return event.pass_acceptance;
   }
 };
 
-template <typename FakeMachine, std::size_t I>
-struct fake_transition_coordinator
-    : skizzay::fsm::transition_coordinator<FakeMachine, test_event<I>> {
-  using transition_table_type = skizzay::fsm::transition_table_t<
-      skizzay::fsm::transition_coordinator<FakeMachine, test_event<I>>>;
+namespace test_states_list_details_ {
+template <std::size_t, typename> struct impl {};
 
-  fake_transition_coordinator(FakeMachine &machine,
-                              test_event<I> const &) noexcept
-      : skizzay::fsm::transition_coordinator<FakeMachine, test_event<I>>{
-            machine.transition_table} {
-    transition_activations.fill(0);
+template <std::size_t NumEvents, std::size_t... Ids>
+struct impl<NumEvents, std::index_sequence<Ids...>> {
+  using type = skizzay::fsm::states_list<test_state<Ids, NumEvents>...>;
+};
+} // namespace test_states_list_details_
+
+template <std::size_t NumEvents, std::size_t NumStates>
+using test_states_list = typename test_states_list_details_::impl<
+    NumEvents, std::make_index_sequence<NumStates>>::type;
+
+template <skizzay::fsm::concepts::events_list EventsList>
+struct fake_event_engine {
+  using events_list_type = EventsList;
+
+  std::array<std::size_t, skizzay::fsm::length_v<events_list_type>>
+      posted_event_counts;
+  std::size_t posted_epsilon_events = 0;
+
+  template <std::size_t I>
+  constexpr void post_event(test_event<I> const &) noexcept {
+    posted_event_counts[I] += 1;
   }
 
-  std::array<std::size_t, skizzay::fsm::length_v<transition_table_type>>
-      transition_activations;
+  constexpr void post_event(skizzay::fsm::epsilon_event_t const &) noexcept {
+    posted_epsilon_events += 1;
+  }
+};
+
+template <skizzay::fsm::concepts::states_list StatesList>
+struct fake_state_provider {
+  using states_list_type = StatesList;
+
+  skizzay::fsm::as_container_t<states_list_type, std::tuple> states;
+
+  template <skizzay::fsm::concepts::state_in<states_list_type> State>
+  constexpr State &state() noexcept {
+    return std::get<State>(states);
+  }
+
+  template <skizzay::fsm::concepts::state_in<states_list_type> State>
+  constexpr State const &state() const noexcept {
+    return std::get<State>(states);
+  }
+};
+
+template <skizzay::fsm::concepts::event Event,
+          skizzay::fsm::concepts::transition_table TransitionTable,
+          skizzay::fsm::concepts::states_list StatesList =
+              skizzay::fsm::states_list_t<TransitionTable>,
+          skizzay::fsm::concepts::events_list EventsList =
+              skizzay::fsm::events_list_t<TransitionTable>>
+struct fake_event_transition_context : fake_event_engine<EventsList>,
+                                       fake_state_provider<StatesList> {
+  using transition_table_type = TransitionTable;
+  using states_list_type =
+      skizzay::fsm::states_list_t<fake_state_provider<StatesList>>;
+
+  [[no_unique_address]] transition_table_type transition_table;
 
   template <
       skizzay::fsm::concepts::transition_in<transition_table_type> Transition>
-  requires(!skizzay::fsm::concepts::self_transition<
-           Transition>) constexpr void on_transition(Transition &,
-                                                     FakeMachine &,
-                                                     test_event<I> const &) {
-    std::get<skizzay::fsm::index_of_v<transition_table_type, Transition>>(
-        transition_activations) += 1;
+  constexpr void
+  on_transition(Transition const &,
+                skizzay::fsm::event_t<Transition> const &) noexcept {}
+
+  constexpr skizzay::fsm::concepts::transition_table auto
+  get_transitions(skizzay::fsm::concepts::state_in<states_list_type> auto const
+                      &state) noexcept {
+    return skizzay::fsm::get_transition_table_for_current_state(
+        transition_table, Event{}, state);
+  }
+
+  constexpr std::tuple<>
+  get_transitions(skizzay::fsm::concepts::state auto const &) const noexcept {
+    return {};
+  }
+
+  template <skizzay::fsm::concepts::state_in<
+      skizzay::fsm::next_states_list_t<transition_table_type>>
+                State>
+  constexpr void schedule_entry() noexcept {}
+};
+
+template <skizzay::fsm::concepts::event Event,
+          skizzay::fsm::concepts::states_list StatesList,
+          skizzay::fsm::concepts::events_list EventsList,
+          skizzay::fsm::concepts::states_list NextStatesList = StatesList,
+          skizzay::fsm::concepts::states_list ScheduledNextStatesList =
+              NextStatesList>
+struct fake_entry_context : fake_event_engine<EventsList>,
+                            fake_state_provider<StatesList> {
+  static_assert(
+      skizzay::fsm::contains_all_v<NextStatesList, ScheduledNextStatesList>,
+      "Scheduled states must be a subset of next states");
+  using next_states_list_type = NextStatesList;
+
+  template <skizzay::fsm::concepts::state_in<next_states_list_type> State>
+  constexpr bool is_scheduled() const noexcept {
+    return skizzay::fsm::concepts::state_in<State, ScheduledNextStatesList>;
   }
 };
 
-template <skizzay::fsm::concepts::transition_table TransitionTable>
-struct fake_machine {
-  using states_list_type = skizzay::fsm::states_list_t<TransitionTable>;
-  using events_list_type = skizzay::fsm::events_list_t<TransitionTable>;
-  using transition_table_type = TransitionTable;
-  template <typename T>
-  using contains = std::bool_constant<skizzay::fsm::entry_coordinator_details_::
-                                          is_contained_v<states_list_type, T>>;
+template <std::size_t NumStates> struct test_query {
+  std::array<std::size_t, NumStates> states_queried = {0};
 
-  transition_table_type transition_table;
+  constexpr test_query() noexcept = default;
+  constexpr explicit test_query(std::size_t const stop_after_index) noexcept
+      : states_queried{0}, done_index_{stop_after_index} {}
 
-  void start() noexcept {}
-  void stop() noexcept {}
-  template <std::size_t I>
-  requires skizzay::fsm::concepts::event_in<test_event<I>, events_list_type>
-  bool on(test_event<I> const &) { return true; }
-  template <skizzay::fsm::concepts::state... State> bool is() const noexcept {
-    return false;
+  template <std::size_t Id, std::size_t NumEvents>
+  constexpr void operator()(test_state<Id, NumEvents> const &) noexcept {
+    states_queried[Id] += 1;
   }
+
+  constexpr void stop_at(std::size_t const index) noexcept {
+    done_index_ = index;
+  }
+
+  constexpr void dont_stop() noexcept { stop_at(NumStates); }
+
+  constexpr bool is_done() const noexcept {
+    return [this]<std::size_t... Is>(
+        std::index_sequence<Is...> const) noexcept {
+      return (((0 < states_queried[Is]) && (Is == done_index_)) || ...);
+    }
+    (std::make_index_sequence<NumStates>{});
+  }
+
+private:
+  std::size_t done_index_ = NumStates;
 };
-} // namespace
+} // namespace test_objects

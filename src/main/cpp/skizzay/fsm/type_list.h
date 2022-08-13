@@ -8,11 +8,7 @@
 
 namespace skizzay::fsm {
 
-namespace simple_type_list_details_ {
-template <typename...> struct impl {};
-} // namespace simple_type_list_details_
-template <typename Tag, typename... Elements>
-using simple_type_list = simple_type_list_details_::impl<Elements...>;
+template <typename...> struct simple_type_list {};
 
 template <typename, template <typename> typename> struct all;
 template <typename T, template <typename> typename Template>
@@ -52,6 +48,7 @@ template <typename, typename, std::size_t> struct impl;
 template <template <typename...> typename Template, typename T, typename... Ts,
           typename U, std::size_t I>
 struct impl<Template<T, Ts...>, U, I> {
+  static_assert(0 < sizeof...(Ts), "Type not found");
   using type = typename impl<Template<Ts...>, U, I + 1>::type;
 };
 template <template <typename...> typename Template, typename T, typename... Ts,
@@ -65,6 +62,15 @@ template <typename T, typename U>
 using index_of = typename index_of_details_::impl<T, U, 0>::type;
 template <typename T, typename U>
 inline constexpr std::size_t const index_of_v = index_of<T, U>::value;
+
+template <typename, typename> struct as_index_sequence;
+template <typename T, typename U>
+using as_index_sequence_t = typename as_index_sequence<T, U>::type;
+template <template <typename...> typename Template, typename... Ts,
+          typename SuperSet>
+struct as_index_sequence<Template<Ts...>, SuperSet> {
+  using type = std::index_sequence<index_of_v<SuperSet, Ts>...>;
+};
 
 template <typename, typename> struct contains_all;
 template <typename T, typename U>
@@ -143,14 +149,12 @@ template <std::size_t N, typename IntegralList> struct value_at;
 template <std::size_t N, typename IntegralList>
 inline constexpr typename IntegralList::value_type value_at_v =
     value_at<N, IntegralList>::value;
-template <std::integral Integral, Integral I, Integral... Is,
-          template <Integral...> typename IntegralTemplate>
-struct value_at<0, IntegralTemplate<I, Is...>>
+template <std::integral Integral, Integral I, Integral... Is>
+struct value_at<0, std::integer_sequence<Integral, I, Is...>>
     : std::integral_constant<Integral, I> {};
-template <std::size_t N, std::integral Integral, Integral I, Integral... Is,
-          template <Integral...> typename IntegralTemplate>
-struct value_at<N, IntegralTemplate<I, Is...>>
-    : value_at<N - 1, IntegralTemplate<Is...>> {};
+template <std::size_t N, std::integral Integral, Integral I, Integral... Is>
+struct value_at<N, std::integer_sequence<Integral, I, Is...>>
+    : value_at<N - 1, std::integer_sequence<Integral, Is...>> {};
 
 template <std::size_t, typename> struct skip;
 template <std::size_t N, typename T> using skip_t = typename skip<N, T>::type;
@@ -229,6 +233,13 @@ template <template <typename> typename F,
           template <typename...> typename Template, typename... Elements>
 struct map<Template<Elements...>, F> {
   using type = Template<F<Elements>...>;
+};
+
+template <typename> struct flat_map;
+template <typename T> using flat_map_t = typename flat_map<T>::type;
+template <template <typename...> typename Template, typename... Ts>
+struct flat_map<Template<Ts...>> {
+  using type = concat_t<Ts...>;
 };
 
 template <typename, typename, template <typename, typename> typename>
@@ -326,6 +337,39 @@ template <typename T0, typename T1, typename... Ts>
 struct intersection_of<T0, T1, Ts...> {
   using type = typename intersection_of<typename intersection_of<T0, T1>::type,
                                         Ts...>::type;
+};
+
+template <template <typename...> typename Template, typename... Ts>
+struct curry {
+  template <typename... Us> using type = Template<Ts..., Us...>;
+};
+
+namespace compose_details_ {
+template <template <typename...> typename Template, typename... Us>
+struct impl {
+  using type = Template<Us...>;
+};
+
+template <template <typename...> typename Template, typename... Us>
+requires requires { typename Template<Us...>::type; }
+struct impl<Template, Us...> {
+  using type = typename Template<Us...>::type;
+};
+} // namespace compose_details_
+
+template <template <typename...> typename...> struct compose;
+
+template <template <typename...> typename T> struct compose<T> {
+  template <typename... Us>
+  using type = typename compose_details_::impl<T, Us...>::type;
+};
+
+template <template <typename...> typename T0,
+          template <typename...> typename... Ts>
+struct compose<T0, Ts...> {
+  template <typename... Us>
+  using type = typename compose_details_::impl<
+      T0, typename compose<Ts...>::template type<Us...>>::type;
 };
 
 } // namespace skizzay::fsm

@@ -1,95 +1,121 @@
 #pragma once
 
-#include <skizzay/fsm/ancestors.h>
-#include <skizzay/fsm/concepts.h>
-#include <skizzay/fsm/event.h>
-#include <skizzay/fsm/optional_reference.h>
-#include <skizzay/fsm/reenter.h>
-#include <skizzay/fsm/traits.h>
-#include <skizzay/fsm/trigger.h>
-#include <skizzay/fsm/type_list.h>
+#include "skizzay/fsm/accepts.h"
+#include "skizzay/fsm/enter.h"
+#include "skizzay/fsm/event_transition_context.h"
+#include "skizzay/fsm/exit.h"
+#include "skizzay/fsm/is_done.h"
+#include "skizzay/fsm/optional_reference.h"
+#include "skizzay/fsm/reenter.h"
+#include "skizzay/fsm/state.h"
+#include "skizzay/fsm/state_container.h"
+
+#include <cassert>
+#include <concepts>
+#include <functional>
+#include <stdexcept>
 #include <type_traits>
 
 namespace skizzay::fsm {
 
 namespace basic_state_container_details_ {
 
-enum class acceptance_type { unaccepted, reentered, exited };
-
-template <typename State, typename DerivedStateContainer>
-concept derived_container_state = concepts::state<State> &&
-    requires(DerivedStateContainer &dsc, DerivedStateContainer const &dscc) {
-  { dsc.get() } -> std::same_as<State &>;
-  { dscc.get() } -> std::same_as<State const &>;
-};
-
-template <typename Derived>
-using state_t = std::remove_cvref_t<decltype(std::declval<Derived>().get())>;
-
-template <typename Derived> struct container {
+template <typename Derived, concepts::state State>
+requires std::same_as<State, std::remove_cvref_t<State>> &&
+    (!concepts::state_container<State>)struct container {
   friend Derived;
+
+  using states_list_type = states_list<State>;
+
+  constexpr container() noexcept(
+      std::is_nothrow_default_constructible_v<
+          State>) requires(std::is_default_constructible_v<State>) = default;
+
+  template <typename... Args>
+  requires std::is_constructible_v<State, Args...>
+  constexpr explicit container(Args &&...args) noexcept(
+      std::is_nothrow_constructible_v<State, Args...>)
+      : state_{std::forward<Args>(args)...} {}
+
+  template <std::same_as<State> _ = State> constexpr bool is() const noexcept {
+    return is_active();
+  }
+
+  template <std::same_as<State> _ = State>
+  constexpr optional_reference<State const> current_state() const noexcept {
+    using result_type = optional_reference<State const>;
+    return is_active() ? result_type{this->template state<State>()}
+                       : result_type{std::nullopt};
+  }
+
+  template <std::same_as<State> _ = State> constexpr State &state() noexcept {
+    return state_;
+  }
+
+  template <std::same_as<State> _ = State>
+  constexpr State const &state() const noexcept {
+    return state_;
+  }
 
   constexpr bool is_active() const noexcept { return active_; }
 
   constexpr bool is_inactive() const noexcept { return !active_; }
 
-  template <derived_container_state<Derived>>
-  constexpr bool is() const noexcept {
-    return is_active();
+  template <concepts::query<states_list_type> Query>
+  constexpr bool query(Query &&query) const
+      noexcept(concepts::nothrow_query<Query, states_list_type>) {
+    assert(is_active() || "Trying to query an inactive state container");
+    std::invoke(std::forward<Query>(query), state_);
+    return is_done(query);
   }
 
-  template <derived_container_state<Derived>>
-  constexpr auto current_state() const noexcept {
-    using result_type = optional_reference<state_t<Derived> const>;
-    return is_active() ? result_type{derived().get()}
-                       : result_type{std::nullopt};
+  constexpr State memento() const
+      noexcept(std::is_nothrow_copy_constructible_v<State>) {
+    return state_;
   }
 
-  template <derived_container_state<Derived>, concepts::ancestry Ancestry>
-  constexpr auto ancestry_to(Ancestry ancestry) noexcept {
-    return ancestry.with_new_generation(derived().get());
+  constexpr void recover_from_memento(State &&state) noexcept(
+      std::is_nothrow_move_assignable_v<State>) {
+    state_ = std::move(state);
   }
 
-  template <concepts::machine Machine>
-  constexpr void on_initial_entry(Machine &machine) {
-    activate(machine, initial_entry_event);
+  constexpr void on_entry(concepts::state_schedule auto const &,
+                          initial_entry_event_t const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
+    activate(event, event_engine, state_provider);
   }
 
-  template <concepts::entry_coordinator EntryCoordinator,
-            concepts::machine Machine,
-            concepts::event_in<events_list_t<Machine>> Event>
-  constexpr void on_entry(EntryCoordinator const &entry_coordinator,
-                          Machine &machine, Event const &event) {
-    if (entry_coordinator.template is_scheduled<state_t<Derived>>()) {
-      activate(machine, event);
+  constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
+                          concepts::event auto const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
+    if (state_schedule.template is_scheduled<state_t<Derived>>()) {
+      activate(event, event_engine, state_provider);
     }
   }
 
-  template <concepts::machine Machine>
-  constexpr void on_final_exit(Machine &machine) {
-    deactivate(machine, final_exit_event);
+  constexpr bool on_event(concepts::event_transition_context auto &,
+                          final_exit_event_t const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    deactivate(event, event_engine, state_provider);
+    return true;
   }
 
-  template <typename TransitionCoordinator, concepts::machine Machine,
-            concepts::event_in<events_list_t<Machine>> Event>
-  constexpr bool on_event(TransitionCoordinator &transition_coordinator,
-                          Machine &machine, Event const &event) {
-    switch (attempt_transitions(transition_coordinator, machine, event)) {
-    case acceptance_type::reentered:
-      reenter(derived().get(), machine, event);
-      return true;
-
-    case acceptance_type::exited:
-      deactivate(machine, event);
-      return true;
-
-    default:
-      return false;
-    }
+  constexpr bool
+  on_event(concepts::event_transition_context auto &event_transition_context,
+           concepts::event auto const &event,
+           concepts::event_engine auto &event_engine,
+           concepts::state_provider auto &state_provider) {
+    return attempt_transitions(
+        event_transition_context, state(), event, state_provider,
+        [&]() { deactivate(event, event_engine, state_provider); });
   }
 
 private:
   bool active_ = false;
+  State state_;
 
   constexpr Derived &derived() noexcept {
     return *static_cast<Derived *>(this);
@@ -99,55 +125,46 @@ private:
     return *static_cast<Derived const *>(this);
   }
 
-  template <typename Machine, typename Event>
-  constexpr void activate(Machine &machine, Event const &event) {
-    assert(is_inactive() && "Entry made on active state");
-    derived().do_entry(machine, event);
-    active_ = true;
+  constexpr void activate(concepts::event auto const &event,
+                          concepts::event_engine auto event_engine,
+                          concepts::state_provider auto state_provider) {
+    if (is_active()) {
+      derived().do_reentry(event, event_engine, state_provider);
+    } else {
+      derived().do_entry(event, event_engine, state_provider);
+      active_ = true;
+    }
   }
 
-  template <typename Machine, typename Event>
-  constexpr void deactivate(Machine &machine, Event const &event) {
+  constexpr void deactivate(concepts::event auto const &event,
+                            concepts::event_engine auto event_engine,
+                            concepts::state_provider auto state_provider) {
     assert(is_active() && "Exiting inactive state");
     active_ = false;
-    derived().do_exit(machine, event);
+    derived().do_exit(event, event_engine, state_provider);
   }
 
-  template <typename TransitionCoordinator, typename Machine, typename Event>
-  constexpr acceptance_type
-  attempt_transitions(TransitionCoordinator &transition_coordinator,
-                      Machine &machine, Event const &event) {
-    auto const &const_self = *const_cast<container<Derived> const *>(this);
-    acceptance_type acceptance = acceptance_type::unaccepted;
-    auto attempt_to_transition = [&]<concepts::transition Transition>(
-                                     Transition &transition) {
-      if (transition.accepts(const_self.derived().get(), std::as_const(machine),
-                             event)) {
-        if constexpr (concepts::self_transition<Transition>) {
-          assert(acceptance_type::exited != acceptance &&
-                 "Self transition encountered but state has already exited");
-          trigger(transition, event);
-          acceptance = acceptance_type::reentered;
-        } else {
-          assert(acceptance_type::reentered != acceptance &&
-                 "State changing transition encountered but state has "
-                 "already reentered");
-          transition_coordinator.on_transition(transition, machine, event);
-          acceptance = acceptance_type::exited;
-        }
-      }
-    };
-    std::apply(
-        [attempt_to_transition](concepts::transition auto &...transitions) {
-          (attempt_to_transition(transitions), ...);
-        },
-        transition_coordinator.get_transitions(const_self.derived().get()));
-    return acceptance;
+  constexpr void do_exit(concepts::event auto const &event,
+                         concepts::event_engine auto &event_engine,
+                         concepts::state_provider auto &state_provider) {
+    exit(state(), event, event_engine, state_provider);
+  }
+
+  constexpr void do_entry(concepts::event auto const &event,
+                          concepts::event_engine auto &event_engine,
+                          concepts::state_provider auto &state_provider) {
+    enter(state(), event, event_engine, state_provider);
+  }
+
+  constexpr void do_reentry(concepts::event auto const &event,
+                            concepts::event_engine auto &event_engine,
+                            concepts::state_provider auto &state_provider) {
+    reenter(state(), event, event_engine, state_provider);
   }
 };
 } // namespace basic_state_container_details_
 
-template <typename Derived>
+template <typename Derived, concepts::state State>
 using basic_state_container =
-    basic_state_container_details_::container<Derived>;
+    basic_state_container_details_::container<Derived, State>;
 } // namespace skizzay::fsm
