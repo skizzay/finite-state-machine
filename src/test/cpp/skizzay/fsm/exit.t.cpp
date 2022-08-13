@@ -1,94 +1,76 @@
+#include <skizzay/fsm/exit.h>
+
 #include "skizzay/fsm/event.h"
-#include "skizzay/fsm/exit.h"
+#include "skizzay/fsm/states_list.h"
+#include "test_objects.h"
 #include <catch.hpp>
 
-using skizzay::fsm::epsilon_event;
+using namespace skizzay::fsm;
 
 namespace {
 
-struct simple_state {
-  std::size_t exit_count = 0;
+constexpr std::size_t num_events = 2;
+
+struct simple_state : test_objects::test_state<0, num_events> {
+  template <std::size_t EventId>
+  void on_exit(test_objects::test_event<EventId> const &) = delete;
 };
 
-struct adl_state {
-  std::size_t exit_count = 0;
+struct adl_state : test_objects::test_state<1, num_events> {
+  template <std::size_t EventId>
+  void on_exit(test_objects::test_event<EventId> const &) = delete;
 };
 
-void on_exit(auto const &, adl_state &s) noexcept { ++s.exit_count; }
-
-struct member_function_state {
-  std::size_t exit_count = 0;
-
-  void on_exit(auto const &) noexcept { ++exit_count; }
-};
-
-struct child_state {
-  std::size_t exit_count = 0;
-};
-
-void on_exit(child_state &child, auto const &, simple_state &parent) {
-  ++child.exit_count;
-  ++parent.exit_count;
+void on_exit(adl_state &s, epsilon_event_t const &) noexcept {
+  ++s.epsilon_event_exit_count;
 }
+
+using member_function_state = test_objects::test_state<2, num_events>;
+
+using child_state = test_objects::test_state<3, num_events>;
 
 } // namespace
 
 SCENARIO("exit callbacks", "[unit][state]") {
+  test_objects::fake_event_engine<test_objects::test_events_list<num_events>>
+      event_engine;
+  test_objects::fake_state_provider<
+      states_list<simple_state, adl_state, member_function_state, child_state>>
+      state_provider;
+
   GIVEN("a state without any callbacks") {
-    simple_state target;
+    simple_state &target = state_provider.state<simple_state>();
 
     WHEN("exited") {
-      skizzay::fsm::exit(epsilon_event, target);
-      THEN("exit callback was not fired") { REQUIRE(0 == target.exit_count); }
+      skizzay::fsm::exit(target, epsilon_event, event_engine,
+                            state_provider);
+      THEN("entry callback was not fired") {
+        REQUIRE(0 == target.epsilon_event_exit_count);
+      }
     }
   }
 
   GIVEN("a state with ADL callbacks") {
-    adl_state target;
+    adl_state &target = state_provider.state<adl_state>();
 
     WHEN("exited") {
-      skizzay::fsm::exit(epsilon_event, target);
-      THEN("exit callback was fired") { REQUIRE(1 == target.exit_count); }
+      skizzay::fsm::exit(target, epsilon_event, event_engine,
+                            state_provider);
+      THEN("entry callback was fired") {
+        REQUIRE(1 == target.epsilon_event_exit_count);
+      }
     }
   }
 
   GIVEN("a state with member function callbacks") {
-    member_function_state target;
+    member_function_state &target =
+        state_provider.state<member_function_state>();
 
     WHEN("exited") {
-      skizzay::fsm::exit(epsilon_event, target);
-      THEN("exit callback was fired") { REQUIRE(1 == target.exit_count); }
-    }
-  }
-
-  GIVEN("a state with parental callbacks") {
-    simple_state parent;
-    child_state child;
-
-    AND_GIVEN("a grandparent") {
-      member_function_state grandparent;
-
-      WHEN("exited") {
-        auto target = std::tie(child, parent, grandparent);
-        skizzay::fsm::exit(epsilon_event, target);
-        THEN("child exit callback was fired") {
-          REQUIRE(1 == child.exit_count);
-        }
-        THEN("parent exit callback was fired") {
-          REQUIRE(1 == parent.exit_count);
-        }
-        THEN("grandparent exit callback was not fired") {
-          REQUIRE(0 == grandparent.exit_count);
-        }
-      }
-    }
-
-    WHEN("exited") {
-      auto target = std::tie(child, parent);
-      skizzay::fsm::exit(epsilon_event, target);
-      THEN("child exit callback was fired") { REQUIRE(1 == child.exit_count); }
-      THEN("parent exit callback was fired") {
-        REQUIRE(1 == parent.exit_count);
+      skizzay::fsm::exit(target, epsilon_event, event_engine,
+                            state_provider);
+      THEN("entry callback was fired") {
+        REQUIRE(1 == target.epsilon_event_exit_count);
       }
     }
   }

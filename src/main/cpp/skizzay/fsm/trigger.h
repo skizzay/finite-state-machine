@@ -32,20 +32,6 @@ struct trigger_fn final {
                             event_t<Transition> const &event) const {
     on_triggered(transition, event);
   }
-
-  template <concepts::transition Transition>
-  requires requires(event_t<Transition> const &ec) { ec.on_triggered(); }
-  constexpr void operator()(Transition &,
-                            event_t<Transition> const &event) const {
-    event.on_triggered();
-  }
-
-  template <concepts::transition Transition>
-  requires requires(event_t<Transition> const &ec) { on_triggered(ec); }
-  constexpr void operator()(Transition &,
-                            event_t<Transition> const &event) const {
-    on_triggered(event);
-  }
 };
 } // namespace trigger_details_
 

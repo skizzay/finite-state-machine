@@ -161,11 +161,27 @@ public:
            child_state_container_.query(std::forward<Query>(query));
   }
 
-  constexpr auto memento() const
+  constexpr std::tuple<memento_t<parent_state_container<ParentState>>,
+                       memento_t<ChildStateContainer>>
+  memento() const
       noexcept(is_memento_nothrow_v<parent_state_container<ParentState>>
                    &&is_memento_nothrow_v<ChildStateContainer>) {
-    return std::tuple{parent_state_container_.memento(),
-                      child_state_container_.memento()};
+    using skizzay::fsm::memento;
+    return std::tuple{memento(parent_state_container_),
+                      memento(child_state_container_)};
+  }
+
+  constexpr void recover_from_memento(
+      std::tuple<memento_t<parent_state_container<ParentState>>,
+                 memento_t<ChildStateContainer>> &&
+          memento) noexcept(is_recover_from_memento_nothrow_v<parent_state_container<ParentState>>
+                                &&is_recover_from_memento_nothrow_v<
+                                    ChildStateContainer>) {
+    using skizzay::fsm::recover_from_memento;
+    recover_from_memento(parent_state_container_,
+                         std::move(std::get<0>(memento)));
+    recover_from_memento(child_state_container_,
+                         std::move(std::get<1>(memento)));
   }
 
   template <concepts::state_in<states_list_type> S>
@@ -179,11 +195,13 @@ public:
   }
 
   constexpr bool is_active() const noexcept {
-    return parent_state_container_.is_active() || child_state_container_.is_active();
+    return parent_state_container_.is_active() ||
+           child_state_container_.is_active();
   }
 
   constexpr bool is_inactive() const noexcept {
-    return parent_state_container_.is_inactive() && child_state_container_.is_inactive();
+    return parent_state_container_.is_inactive() &&
+           child_state_container_.is_inactive();
   }
 
   constexpr void on_entry(concepts::state_schedule auto const &state_schedule,
@@ -248,7 +266,7 @@ public:
                            state_provider);
         if (parent_event_context_node.will_exit_container()) {
           exit(parent_state_container_.state(),
-               event_transition_context.event(), event_engine, state_provider);
+               event, event_engine, state_provider);
         }
         return true;
       } else {

@@ -74,6 +74,11 @@ requires std::same_as<State, std::remove_cvref_t<State>> &&
     return state_;
   }
 
+  constexpr void recover_from_memento(State &&state) noexcept(
+      std::is_nothrow_move_assignable_v<State>) {
+    state_ = std::move(state);
+  }
+
   constexpr void on_entry(concepts::state_schedule auto const &,
                           initial_entry_event_t const &event,
                           concepts::event_engine auto event_engine,

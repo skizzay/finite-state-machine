@@ -2,7 +2,7 @@
 
 #include "skizzay/fsm/event_handler.h"
 #include "skizzay/fsm/machine.h"
-#include "skizzay/fsm/simple_transition.h"
+#include "skizzay/fsm/transition.h"
 #include "skizzay/fsm/single_state_container.h"
 #include "skizzay/fsm/state_queryable.h"
 #include "test_objects.h"

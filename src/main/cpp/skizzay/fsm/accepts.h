@@ -52,60 +52,32 @@ struct accepts_fn final {
 
   template <concepts::transition Transition,
             concepts::state_provider StateProvider>
-  requires requires(current_state_t<Transition> const &s,
-                    event_t<Transition> const &e, StateProvider const &sp) {
-    { s.is_accepted(e, sp) }
+  requires requires(Transition const &t, current_state_t<Transition> const &s,
+                    event_t<Transition> const &e) {
+    { t.is_accepted(s, e) }
     noexcept->concepts::boolean;
   }
   constexpr bool
   operator()(Transition const &transition,
              current_state_t<Transition> const &state,
              event_t<Transition> const &event,
-             StateProvider const &state_provider) const noexcept {
-    return state.is_accepted(event, state_provider);
+             StateProvider const &) const noexcept {
+    return transition.is_accepted(state, event);
   }
 
   template <concepts::transition Transition,
             concepts::state_provider StateProvider>
-  requires requires(current_state_t<Transition> const &s,
-                    event_t<Transition> const &e, StateProvider const &sp) {
-    { is_accepted(s, e, sp) }
+  requires requires(Transition const &t, current_state_t<Transition> const &s,
+                    event_t<Transition> const &e) {
+    { is_accepted(t, s, e) }
     noexcept->concepts::boolean;
   }
   constexpr bool
   operator()(Transition const &transition,
              current_state_t<Transition> const &state,
              event_t<Transition> const &event,
-             StateProvider const &state_provider) const noexcept {
-    return is_accepted(state, event, state_provider);
-  }
-
-  template <concepts::transition Transition,
-            concepts::state_provider StateProvider>
-  requires requires(current_state_t<Transition> const &s,
-                    event_t<Transition> const &e) {
-    { s.is_accepted(e) }
-    noexcept->concepts::boolean;
-  }
-  constexpr bool operator()(Transition const &,
-                            current_state_t<Transition> const &state,
-                            event_t<Transition> const &event,
-                            StateProvider const &) const noexcept {
-    return state.is_accepted(event);
-  }
-
-  template <concepts::transition Transition,
-            concepts::state_provider StateProvider>
-  requires requires(current_state_t<Transition> const &s,
-                    event_t<Transition> const &e) {
-    { is_accepted(s, e) }
-    noexcept->concepts::boolean;
-  }
-  constexpr bool operator()(Transition const &,
-                            current_state_t<Transition> const &state,
-                            event_t<Transition> const &event,
-                            StateProvider const &) const noexcept {
-    return is_accepted(state, event);
+             StateProvider const &) const noexcept {
+    return is_accepted(transition, state, event);
   }
 };
 } // namespace accepts_details_

@@ -121,15 +121,11 @@ struct fake_event_engine {
   }
 };
 
-template <skizzay::fsm::concepts::event Event,
-          skizzay::fsm::concepts::states_list StatesList>
-struct fake_context {
+template <skizzay::fsm::concepts::states_list StatesList>
+struct fake_state_provider {
   using states_list_type = StatesList;
 
-  Event e;
   skizzay::fsm::as_container_t<states_list_type, std::tuple> states;
-
-  constexpr Event const &event() const noexcept { return e; }
 
   template <skizzay::fsm::concepts::state_in<states_list_type> State>
   constexpr State &state() noexcept {
@@ -149,10 +145,10 @@ template <skizzay::fsm::concepts::event Event,
           skizzay::fsm::concepts::events_list EventsList =
               skizzay::fsm::events_list_t<TransitionTable>>
 struct fake_event_transition_context : fake_event_engine<EventsList>,
-                                       fake_context<Event, StatesList> {
+                                       fake_state_provider<StatesList> {
   using transition_table_type = TransitionTable;
   using states_list_type =
-      skizzay::fsm::states_list_t<fake_context<Event, StatesList>>;
+      skizzay::fsm::states_list_t<fake_state_provider<StatesList>>;
 
   [[no_unique_address]] transition_table_type transition_table;
 
@@ -165,8 +161,8 @@ struct fake_event_transition_context : fake_event_engine<EventsList>,
   constexpr skizzay::fsm::concepts::transition_table auto
   get_transitions(skizzay::fsm::concepts::state_in<states_list_type> auto const
                       &state) noexcept {
-    return get_transition_table_for_current_state(transition_table,
-                                                  this->event(), state);
+    return skizzay::fsm::get_transition_table_for_current_state(
+        transition_table, Event{}, state);
   }
 
   constexpr std::tuple<>
@@ -187,7 +183,7 @@ template <skizzay::fsm::concepts::event Event,
           skizzay::fsm::concepts::states_list ScheduledNextStatesList =
               NextStatesList>
 struct fake_entry_context : fake_event_engine<EventsList>,
-                            fake_context<Event, StatesList> {
+                            fake_state_provider<StatesList> {
   static_assert(
       skizzay::fsm::contains_all_v<NextStatesList, ScheduledNextStatesList>,
       "Scheduled states must be a subset of next states");

@@ -116,11 +116,11 @@ template <
     concepts::root_state_container<RootTransitionTable> RootStateContainer>
 struct machine_state<RootTransitionTable, RootStateContainer> {
   using transition_table_type = RootTransitionTable;
-  using states_list_type =
-      states_list<machine_state<RootStateContainer, RootTransitionTable>>;
+  using states_list_type = states_list_t<RootStateContainer>;
+  // states_list<machine_state<RootTransitionTable, RootStateContainer>>;
 
   template <
-      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
+      std::same_as<machine_state<RootTransitionTable, RootStateContainer>>>
   constexpr bool is() const noexcept {
     return is_active();
   }
@@ -131,9 +131,9 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
   }
 
   template <
-      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
+      std::same_as<machine_state<RootTransitionTable, RootStateContainer>>>
   constexpr optional_reference<
-      machine_state<RootStateContainer, RootTransitionTable> const>
+      machine_state<RootTransitionTable, RootStateContainer> const>
   current_state() const noexcept {
     return is_active() ? optional_reference{*this} : std::nullopt;
   }
@@ -144,8 +144,8 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
   }
 
   template <
-      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
-  constexpr machine_state<RootStateContainer, RootTransitionTable> &
+      std::same_as<machine_state<RootTransitionTable, RootStateContainer>>>
+  constexpr machine_state<RootTransitionTable, RootStateContainer> &
   state() noexcept {
     return *this;
   }
@@ -156,8 +156,8 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
   }
 
   template <
-      std::same_as<machine_state<RootStateContainer, RootTransitionTable>>>
-  constexpr machine_state<RootStateContainer, RootTransitionTable> const &
+      std::same_as<machine_state<RootTransitionTable, RootStateContainer>>>
+  constexpr machine_state<RootTransitionTable, RootStateContainer> const &
   state() const noexcept {
     return *this;
   }
@@ -181,15 +181,17 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
     return root_state_container_.query(std::forward<Query>(query));
   }
 
-  template <
-      concepts::query<machine_state<RootStateContainer, RootTransitionTable>>
-          Query>
-  constexpr bool query(Query &&query) const
-      noexcept(concepts::nothrow_query<
-               Query, machine_state<RootStateContainer, RootTransitionTable>>) {
-    assert(is_active() || "Trying to query an inactive machine state");
-    std::invoke(std::forward<Query>(query), *this);
-    return is_done(query);
+  constexpr memento_t<RootStateContainer> memento() const
+      noexcept(is_memento_nothrow_v<RootStateContainer>) {
+    using skizzay::fsm::memento;
+    return memento(root_state_container_);
+  }
+
+  constexpr void
+  recover_from_memento(memento_t<RootStateContainer> &&memento) noexcept(
+      is_recover_from_memento_nothrow_v<RootStateContainer>) {
+    using skizzay::fsm::recover_from_memento;
+    recover_from_memento(root_state_container_, std::move(memento));
   }
 
   constexpr void on_entry(concepts::state_schedule auto const &,
@@ -206,7 +208,7 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
                           initial_entry_event_t const &event,
                           concepts::event_engine auto &event_engine,
                           concepts::state_provider auto &) {
-    assert(is_inactive() ||
+    assert(is_inactive() &&
            "Attempting initial entry on an active machine state");
     enter_root_state_container(empty_state_schedule{}, initial_entry_event);
   }
@@ -221,7 +223,7 @@ struct machine_state<RootTransitionTable, RootStateContainer> {
                                        q_};
     auto local_state_scheduler{
         machine_state_details_::make_local_state_scheduler<
-            machine_state<RootStateContainer, RootTransitionTable>>(
+            machine_state<RootTransitionTable, RootStateContainer>>(
             state_scheduler_, external_event_transition_context)};
     machine_state_details_::local_event_transition_context
         local_event_transition_context{

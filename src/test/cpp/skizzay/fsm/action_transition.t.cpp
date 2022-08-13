@@ -1,14 +1,18 @@
+
+#include <skizzay/fsm/transition.h>
+
+#include "test_objects.h"
 #include <catch.hpp>
-#include <skizzay/fsm/action_transition.h>
 
 using namespace skizzay::fsm;
 
 namespace {
 
-struct timer_expired {};
+constexpr std::size_t num_events = 1;
+using timer_expired = test_objects::test_event<0>;
 
-struct green {};
-struct red {};
+using green = test_objects::test_state<0, num_events>;
+using red = test_objects::test_state<1, num_events>;
 
 } // namespace
 
@@ -18,18 +22,11 @@ SCENARIO("action transition", "[unit][transition]") {
     auto action = [&triggered](timer_expired const &) noexcept {
       triggered = true;
     };
-    using target_type =
-        action_transition<red, green, timer_expired, decltype(action)>;
-    target_type target{action};
+    auto target = action_transition_for<red, green, timer_expired>(std::move(action));
 
     THEN("it models a transition") {
-      REQUIRE(is_transition<target_type>::value);
-      REQUIRE(concepts::transition<target_type>);
-
-      AND_THEN("it does also model an actionable transtion") {
-        REQUIRE(is_actionable_transition<target_type>::value);
-        REQUIRE(concepts::actionable_transition<target_type>);
-      }
+      REQUIRE(is_transition<decltype(target)>::value);
+      REQUIRE(concepts::transition<decltype(target)>);
     }
 
     WHEN("triggered") {

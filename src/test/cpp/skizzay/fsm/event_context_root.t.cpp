@@ -1,7 +1,7 @@
 #include <skizzay/fsm/event_transition_context_root.h>
 
 #include "skizzay/fsm/event_transition_context.h"
-#include "skizzay/fsm/simple_transition.h"
+#include "skizzay/fsm/transition.h"
 #include "skizzay/fsm/transition_table.h"
 #include "test_objects.h"
 

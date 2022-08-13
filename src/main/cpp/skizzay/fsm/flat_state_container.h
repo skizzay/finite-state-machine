@@ -3,6 +3,7 @@
 #include "skizzay/fsm/event_context_node.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/optional_reference.h"
+#include "skizzay/fsm/snapshot.h"
 #include "skizzay/fsm/state.h"
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/state_containers_list.h"
@@ -172,17 +173,18 @@ public:
 
   constexpr auto memento() const
       noexcept((is_memento_nothrow_v<StateContainers> && ...)) {
-    constexpr auto const memento_impl =
+    using skizzay::fsm::memento;
+    auto const memento_impl =
         [this]<std::size_t I, std::size_t... Is>(
             std::index_sequence<I, Is...> const,
             auto const &impl) noexcept(noexcept(std::get<I>(state_containers_)
                                                     .memento()))
             ->std::variant<memento_t<StateContainers>...> {
       if (I == current_index_) {
-        return std::get<I>(state_containers_);
+        return memento(std::get<I>(state_containers_));
       } else {
         if constexpr (empty_v<std::index_sequence<Is...>>) {
-          throw;
+          std::terminate();
         } else {
           return impl(std::index_sequence<Is...>{}, impl);
         }
@@ -190,6 +192,32 @@ public:
     };
     return memento_impl(std::make_index_sequence<length_v<tuple_type>>{},
                         memento_impl);
+  }
+
+  constexpr void recover_from_memento(
+      std::variant<memento_t<StateContainers>...> &&
+          memento) noexcept((is_recover_from_memento_nothrow_v<StateContainers> &&
+                             ...)) {
+    using skizzay::fsm::recover_from_memento;
+    assert(memento.index() < length_v<tuple_type>);
+
+    current_index_ = memento.index();
+    auto const maybe_recover_from_memento =
+        [this]<std::size_t I>(auto &&memento) noexcept(
+            is_recover_from_memento_nothrow_v<element_at_t<I, tuple_type>>) {
+          if (I == current_index_) {
+            recover_from_memento(std::get<I>(state_containers_),
+                                 std::move(memento));
+          }
+        };
+    auto const impl = [maybe_recover_from_memento]<std::size_t... Is>(
+        auto &&memento, std::index_sequence<Is...> const){};
+    std::visit(
+        [impl](auto &&memento) noexcept {
+          impl(std::move(memento),
+               std::make_index_sequence<length_v<tuple_type>>{});
+        },
+        std::move(memento));
   }
 
   template <concepts::state_in<states_list_type> S>

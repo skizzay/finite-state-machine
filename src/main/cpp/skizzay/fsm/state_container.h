@@ -6,7 +6,8 @@
 #include "skizzay/fsm/event_engine.h"
 #include "skizzay/fsm/event_transition_context.h"
 #include "skizzay/fsm/events_list.h"
-#include "skizzay/fsm/simple_transition.h"
+#include "skizzay/fsm/query.h"
+#include "skizzay/fsm/snapshot.h"
 #include "skizzay/fsm/state_accessible.h"
 #include "skizzay/fsm/state_provider.h"
 #include "skizzay/fsm/state_schedule.h"
@@ -76,34 +77,9 @@ struct fake_state_schedule {
 };
 } // namespace is_state_container_details_
 
-template <typename> struct is_memento_nothrow : std::false_type {};
-
-template <typename T>
-requires requires(T const &tc) {
-  { tc.memento() }
-  noexcept->std::copyable;
-}
-struct is_memento_nothrow<T> : std::true_type {};
-
-template <typename T>
-constexpr bool is_memento_nothrow_v = is_memento_nothrow<T>::value;
-
-template <typename> struct memento_type {};
-
-template <typename T>
-requires requires(T const &tc) {
-  { tc.memento() } -> std::copyable;
-}
-struct memento_type<T> {
-  using type = std::remove_cvref_t<
-      decltype(std::declval<std::add_const_t<T>>().memento())>;
-};
-
-template <typename T> using memento_t = typename memento_type<T>::type;
-
 namespace concepts {
 template <typename T>
-concept state_container = state_accessible<T> &&
+concept state_container = state_accessible<T> && snapshottable<T> &&
     requires(T &t, T const &tc,
              is_state_container_details_::fake_state_schedule const &fss,
              is_state_container_details_::event_type const &e,
@@ -126,6 +102,14 @@ concept root_state_container = state_container<T> &&
     (length_v<states_list_t<T>> ==
      length_v<states_list_t<RootTransitionTable>>);
 } // namespace concepts
+
+template <typename F, concepts::state_container StateContainer>
+requires requires {
+  typename StateContainer::query_states_list_type;
+} && concepts::states_list<typename StateContainer::query_states_list_type>
+struct query_result<F, StateContainer>
+    : query_result<F, typename StateContainer::query_states_list_type> {
+};
 
 template <typename T>
 using is_state_container = std::bool_constant<concepts::state_container<T>>;

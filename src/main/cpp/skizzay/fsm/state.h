@@ -2,6 +2,7 @@
 
 #include "skizzay/fsm/detected.h"
 #include "skizzay/fsm/nonvoid.h"
+#include "skizzay/fsm/snapshot.h"
 #include <concepts>
 #include <type_traits>
 
@@ -10,7 +11,8 @@ namespace concepts {
 template <typename T>
 concept state = std::destructible<T> && std::copy_constructible<T> &&
     nonvoid<std::remove_cvref_t<T>> &&
-    std::negation_v<std::is_pointer<std::remove_cvref_t<T>>>;
+    std::negation_v<std::is_pointer<std::remove_cvref_t<T>>> &&
+    std::is_move_assignable_v<T>;
 } // namespace concepts
 
 template <typename T> using is_state = std::bool_constant<concepts::state<T>>;

@@ -3,7 +3,7 @@
 #include "test_objects.h"
 #include <catch2/catch.hpp>
 #include <skizzay/fsm/detected.h>
-#include <skizzay/fsm/simple_transition.h>
+#include <skizzay/fsm/transition.h>
 #include <skizzay/fsm/states_list.h>
 #include <skizzay/fsm/transition_table.h>
 #include <skizzay/fsm/type_list.h>

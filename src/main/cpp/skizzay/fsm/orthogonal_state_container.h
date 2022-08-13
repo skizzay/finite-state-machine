@@ -173,7 +173,7 @@ public:
      std::make_index_sequence<length_v<tuple_type>>{});
   }
 
-  constexpr auto memento() const
+  constexpr std::tuple<memento_t<StateContainers>...> memento() const
       noexcept((is_memento_nothrow_v<StateContainers> && ...)) {
     return std::apply(
         [](StateContainers const &...state_containers) noexcept(
@@ -181,6 +181,26 @@ public:
           return std::tuple{state_containers.memento()...};
         },
         state_containers_);
+  }
+
+  constexpr void recover_from_memento(
+      std::tuple<memento_t<StateContainers>...> &&
+          memento) noexcept((is_recover_from_memento_nothrow_v<StateContainers> &&
+                             ...)) {
+    using skizzay::fsm::recover_from_memento;
+    []<std::size_t... Is>(
+        tuple_type & state_containers,
+        std::tuple<memento_t<StateContainers>...> && memento,
+        std::index_sequence<
+            Is...> const) noexcept((is_recover_from_memento_nothrow_v<StateContainers> &&
+                                    ...)) {
+      (recover_from_memento(std::get<Is>(state_containers),
+                            std::move(std::get<Is>(memento))),
+       ...);
+    }
+    (state_containers_,
+     std::move(memento),
+     std::make_index_sequence<length_v<tuple_type>>{});
   }
 
   constexpr void on_entry(concepts::state_schedule auto const &state_schedule,

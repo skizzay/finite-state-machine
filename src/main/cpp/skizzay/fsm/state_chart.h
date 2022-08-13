@@ -5,6 +5,7 @@
 #include "skizzay/fsm/internal_event_engine.h"
 #include "skizzay/fsm/optional_reference.h"
 #include "skizzay/fsm/query.h"
+#include "skizzay/fsm/snapshot.h"
 #include "skizzay/fsm/state_container.h"
 #include "skizzay/fsm/states_list.h"
 #include "skizzay/fsm/task_queue.h"
@@ -65,9 +66,17 @@ struct state_chart {
     }
   }
 
-  constexpr auto memento() const
+  constexpr memento_t<RootStateContainer> memento() const
       noexcept(is_memento_nothrow_v<RootStateContainer>) {
-    return root_state_container_.memento();
+    using skizzay::fsm::memento;
+    return memento(root_state_container_);
+  }
+
+  constexpr void
+  recover_from_memento(memento_t<RootStateContainer> &&memento) noexcept(
+      is_recover_from_memento_nothrow_v<RootStateContainer>) {
+    using skizzay::fsm::recover_from_memento;
+    recover_from_memento(root_state_container_, std::move(memento));
   }
 
   constexpr void start() {

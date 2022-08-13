@@ -1,99 +1,73 @@
-#include "skizzay/fsm/event.h"
-#include <catch.hpp>
 #include <skizzay/fsm/reenter.h>
 
-using skizzay::fsm::epsilon_event;
+#include "skizzay/fsm/event.h"
+#include "skizzay/fsm/states_list.h"
+#include "test_objects.h"
+#include <catch.hpp>
+
+using namespace skizzay::fsm;
 
 namespace {
 
-struct simple_state {
-  std::size_t reentry_count = 0;
+constexpr std::size_t num_events = 2;
+
+struct simple_state : test_objects::test_state<0, num_events> {
+  template <std::size_t EventId>
+  void on_reentry(test_objects::test_event<EventId> const &) = delete;
 };
 
-struct adl_state {
-  std::size_t reentry_count = 0;
+struct adl_state : test_objects::test_state<1, num_events> {
+  template <std::size_t EventId>
+  void on_reentry(test_objects::test_event<EventId> const &) = delete;
 };
 
-void on_reentry(auto const &, adl_state &s) noexcept { ++s.reentry_count; }
+void on_reentry(adl_state &s, epsilon_event_t const &) noexcept {
+  ++s.epsilon_event_reentry_count;
+}
 
-struct member_function_state {
-  std::size_t reentry_count = 0;
+using member_function_state = test_objects::test_state<2, num_events>;
 
-  void on_reentery(auto const &) noexcept { ++reentry_count; }
-};
-
-struct child_state {
-  std::size_t reentry_count = 0;
-
-  void on_reentry(simple_state &parent, member_function_state &grandparent) {
-    ++reentry_count;
-    ++parent.reentry_count;
-    ++grandparent.reentry_count;
-  }
-};
+using child_state = test_objects::test_state<3, num_events>;
 
 } // namespace
 
 SCENARIO("reenter callbacks", "[unit][state]") {
+  test_objects::fake_event_engine<test_objects::test_events_list<num_events>>
+      event_engine;
+  test_objects::fake_state_provider<
+      states_list<simple_state, adl_state, member_function_state, child_state>>
+      state_provider;
+
   GIVEN("a state without any callbacks") {
-    simple_state target;
+    simple_state &target = state_provider.state<simple_state>();
 
     WHEN("reentered") {
-      skizzay::fsm::reenter(epsilon_event, target);
-      THEN("reentry callback was not fired") {
-        REQUIRE(0 == target.reentry_count);
+      skizzay::fsm::reenter(target, epsilon_event, event_engine, state_provider);
+      THEN("entry callback was not fired") {
+        REQUIRE(0 == target.epsilon_event_reentry_count);
       }
     }
   }
 
   GIVEN("a state with ADL callbacks") {
-    adl_state target;
+    adl_state &target = state_provider.state<adl_state>();
 
     WHEN("reentered") {
-      skizzay::fsm::reenter(epsilon_event, target);
-      THEN("reentry callback was fired") { REQUIRE(1 == target.reentry_count); }
+      skizzay::fsm::reenter(target, epsilon_event, event_engine, state_provider);
+      THEN("entry callback was fired") {
+        REQUIRE(1 == target.epsilon_event_reentry_count);
+      }
     }
   }
 
   GIVEN("a state with member function callbacks") {
-    member_function_state target;
+    member_function_state &target =
+        state_provider.state<member_function_state>();
 
     WHEN("reentered") {
-      skizzay::fsm::reenter(epsilon_event, target);
-      THEN("reentry callback was fired") { REQUIRE(1 == target.reentry_count); }
-    }
-  }
-
-  GIVEN("a state with parental callbacks") {
-    simple_state parent;
-    child_state child;
-
-    AND_GIVEN("a grandparent") {
-      member_function_state grandparent;
-
-      WHEN("reentered") {
-        auto target = std::tie(child, parent, grandparent);
-        skizzay::fsm::reenter(epsilon_event, target);
-        THEN("child reentry callback was fired") {
-          REQUIRE(1 == child.reentry_count);
-        }
-        THEN("parent reentry callback was fired") {
-          REQUIRE(1 == parent.reentry_count);
-        }
-        THEN("grandparent reentry callback was fired") {
-          REQUIRE(1 == grandparent.reentry_count);
-        }
-      }
-    }
-
-    WHEN("reentered") {
-      auto target = std::tie(child, parent);
-      skizzay::fsm::reenter(epsilon_event, target);
-      THEN("child reentry callback was fired") {
-        REQUIRE(1 == child.reentry_count);
-      }
-      THEN("parent reentry callback was fired") {
-        REQUIRE(1 == parent.reentry_count);
+      skizzay::fsm::reenter(target, epsilon_event, event_engine, state_provider);
+      THEN("entry callback was fired") {
+        REQUIRE(1 == target.epsilon_event_reentry_count);
       }
     }
   }

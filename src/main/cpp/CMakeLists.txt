@@ -7,32 +7,44 @@ target_sources(fsm INTERFACE
    skizzay/fsm/accepts.h
    skizzay/fsm/basic_state_container.h
    skizzay/fsm/boolean.h
-   skizzay/fsm/entry_context.h
+   skizzay/fsm/const_ref.h
+   skizzay/fsm/detected.h
+   skizzay/fsm/enter.h
    skizzay/fsm/entry_state_scheduler.h
-   skizzay/fsm/event.h
    skizzay/fsm/event_context_node.h
-   skizzay/fsm/event_context.h
    skizzay/fsm/event_engine.h
    skizzay/fsm/event_handler.h
-   skizzay/fsm/event_provider.h
+   skizzay/fsm/event_transition_context_root.h
+   skizzay/fsm/event_transition_context.h
+   skizzay/fsm/event.h
    skizzay/fsm/events_list.h
+   skizzay/fsm/exit.h
    skizzay/fsm/flat_state_container.h
    skizzay/fsm/hierarchical_state_container.h
    skizzay/fsm/is_done.h
+   skizzay/fsm/machine_state.h
+   skizzay/fsm/nonvoid.h
    skizzay/fsm/optional_reference.h
+   skizzay/fsm/orthogonal_state_container.h
    skizzay/fsm/overload.h
    skizzay/fsm/query.h
-   skizzay/fsm/simple_transition.h
+   skizzay/fsm/reenter.h
    skizzay/fsm/single_state_container.h
-   skizzay/fsm/state.h
+   skizzay/fsm/snapshot.h
    skizzay/fsm/state_accessible.h
+   skizzay/fsm/state_chart.h
    skizzay/fsm/state_container.h
    skizzay/fsm/state_containers_list.h
    skizzay/fsm/state_provider.h
    skizzay/fsm/state_queryable.h
-   skizzay/fsm/state_transition_context.h
+   skizzay/fsm/state_schedule.h
+   skizzay/fsm/state_scheduler.h
+   skizzay/fsm/state_transition_ambiguity.h
+   skizzay/fsm/state.h
    skizzay/fsm/states_list.h
+   skizzay/fsm/task_queue.h
+   skizzay/fsm/transition_table.h
    skizzay/fsm/transition.h
+   skizzay/fsm/trigger.h
    skizzay/fsm/type_list.h
-   skizzay/fsm/types.h
 )

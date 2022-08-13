@@ -223,6 +223,15 @@ struct valid_state_container {
 
   template <typename F> constexpr bool query(F &&f) const { return is_done(f); }
 
+  test_state_type memento() const
+      noexcept(std::is_nothrow_copy_constructible_v<test_state_type>) {
+    return s;
+  }
+
+  void recover_from_memento(test_state_type &&s) {
+    this->s = std::move(s);
+  }
+
   template <std::same_as<test_state_type>>
   constexpr test_state_type &state() noexcept {
     return s;
